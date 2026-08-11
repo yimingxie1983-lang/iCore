@@ -1,0 +1,196 @@
+# ============================================================
+# iCore 主配置文件
+#
+# Author: OneKeyJune
+# Email: onekeyjune@gmail.com
+#
+# 用法：
+# 1. 直接修改本文件配置应用参数
+# 2. 敏感信息（API Key）推荐通过环境变量覆盖：
+#    - {PROVIDER_ID大写}_API_KEY          覆盖某供应商密钥（如 QWEN_API_KEY=sk-xxx）
+#    - CANCER_CLAW_APP_PORT               覆盖应用端口
+#    - CANCER_CLAW_APP_DEBUG              覆盖调试模式
+#    - CANCER_CLAW_LOG_LEVEL              覆盖日志级别
+#    - CANCER_CLAW_DATABASE_PATH          覆盖数据库路径
+#    - CANCER_CLAW_EVOLUTION_ENABLED      覆盖进化链总开关
+# 3. 也可以通过 ONEKEY_CONFIG 环境变量指定本文件的绝对路径
+# ============================================================
+
+
+# ── 应用基本信息 ───────────────────────────────────────────────
+app:
+  name: "iCore"
+  version: "0.1.0"
+  debug: true
+  host: "0.0.0.0"
+  port: 8000
+
+
+# ── 运行时目录 ─────────────────────────────────────────────────
+# 所有相对路径都相对于本 config.yaml 所在目录（自动解析为绝对路径）。
+paths:
+  data_dir: "./cancer_claw/var/state"
+  projects_dir: "./cancer_claw/var/workspaces"
+  agents_dir: "./cancer_claw/var/agent_instances"
+  library_crafts_dir: "./cancer_claw/resources/knowledge/playbooks"
+  # 人格 Markdown 库（热插拔人格的真相源）
+  personas_dir: "./cancer_claw/resources/persona_profiles"
+  # 文件类工具允许额外访问的绝对路径前缀（高级用法；默认仅本项目目录）
+  tool_path_allow_extra:
+    - "D:\\data"
+    - "D:\\demo"
+
+
+# ── SQLite 数据库 ──────────────────────────────────────────────
+database:
+  path: "./cancer_claw/var/state/cancer_claw.db"
+  url: ""
+
+redis:
+  url: ""
+  key_prefix: "cc"
+
+
+# ── LLM 供应商 ─────────────────────────────────────────────────
+# 首次启动时把这里的 providers 迁移到 ./cancer_claw/var/state/providers.yaml；
+# 之后增删改全部读写 providers.yaml，本段仅作为初始模板。
+#
+# 每个 provider 至少要有：
+#   id / name / base_url / api_key / models（含一个 role=general 的模型）
+#
+# 强烈建议通过环境变量注入 api_key（如 QWEN_API_KEY=sk-xxx），
+# 不要把真实密钥提交进 git。
+providers:
+  - id: moonshot
+    name: "Moonshot Kimi"
+    base_url: "https://api.moonshot.cn/v1"
+    api_key: ""   # 留空 → 用户自填：环境变量 MOONSHOT_API_KEY，或登录后在「模型供应商」页填写
+    enabled: true
+    priority: 0
+    models:
+      - id: kimi-k2.6
+        role: general
+      - id: kimi-k2.6
+        role: fast
+      - id: kimi-k2.6
+        role: complex
+
+
+# ── 上下文管理 ─────────────────────────────────────────────────
+# 默认按 100k 输入窗口设计（模型窗口 200k，预留 100k 给输出）。
+context:
+  default_max_tokens: 100000
+  soul_budget: 3500
+  memory_budget: 5000
+  plan_budget: 8000
+  craft_total_ratio: 0.10
+  craft_index_ratio: 0.03
+
+
+# ── 记忆系统 ───────────────────────────────────────────────────
+memory:
+  core_max_lines: 200
+  topic_max_lines: 500
+  user_memory_dir: "./cancer_claw/var/state/user_memory"
+  conv_load_recent_turns: 20
+  working_memory_onelines: 8
+  history_inject_max_tokens: 15000
+  auto_extract_enabled: true
+  conv_load_consensus: 8
+  conv_load_per_platform: 12
+
+
+# ── Pipeline / Craft / 日志 / 沙箱 ────────────────────────────
+pipeline:
+  auto_certify_threshold: 0.9
+
+craft:
+  auto_evolve_min_samples: 5
+  auto_evolve_success_threshold: 0.7
+  description_max_chars: 250
+
+
+# ── Skill 生态层（外部 Anthropic SKILL.md 兼容） ─────────────────
+# Skill 是用户/外部生态贡献的轻量 markdown 方法论（兼容 Claude Code 的 SKILL.md）。
+# Craft 是我们自己沉淀的偏工程方法论，frontmatter 严格契约；两者在系统内合并为
+# 同一份 CraftRecord 索引，对 agent / 路由透明，只在 origin_type 上区分。
+skills:
+  enabled: true
+  # 递归扫描的根目录（相对 project_root）。允许多个，按出现顺序合并。
+  scan_paths:
+    - "./cancer_claw/resources/knowledge/skill_packs"
+  # 用户上传 / wip 暂存路径（会话 3 的上传 API 落到这里）
+  uploads_dir: "./cancer_claw/resources/knowledge/skill_packs/uploads"
+  # 启动后是否开 watchdog 监听新增/修改（会话 3 才真正接入；当前只是占位）
+  watch: false
+  # 单次 chat L1 listing 的 token 预算上限（双段 Craft + Skill 合在一起算）
+  l1_max_token_budget: 8000
+  # 单条 L1 描述最多保留多少字符（中文 1 字 ≈ 1.5 token）
+  l1_max_chars_per_entry: 240
+  # 始终强制装入 L1（在 token 预算内优先级最高），id 写虚拟 skill_xxx
+  # 卫健委场景：把政策检索方法论钉进 L1，保证政策顾问随时能看到该方法论摘要
+  pinned:
+    - "skill_policy-research-advisory"
+
+citations:
+  authority_sites:
+    - "nhc.gov.cn"
+    - "nhsa.gov.cn"
+    - "nmpa.gov.cn"
+    - "gov.cn"
+    - "chinacdc.cn"
+
+logging:
+  level: "INFO"
+  format: "console"   # 开发用 console（可读）；生产建议 json
+
+sandbox:
+  mode: "native"      # native | off
+  # ML 训练场景：默认 2048MB 太小（加载数据集 + PyTorch/sklearn 易超），调到 8GB。
+  # 视本机物理内存按需调整（建议不超过物理内存的 60%）。
+  max_memory_mb: 8192
+  # PyTorch DataLoader worker / BLAS 子进程可能较多，留足并发余量。
+  max_processes: 96
+  # cpu_time_seconds 是「Job 累积 user 态 CPU 时间」上限，到点 OS 直接杀光所有子进程。
+  # 原值 3600（1h）对 CPU 训练是致命约束——多核并行几分钟就能烧掉 1h 累积 CPU 时间。
+  # 设为 0 表示关闭该限制（见 win_executor.py: `if cpu_time_seconds > 0` 才施加 JOB_TIME），
+  # 让训练能跑到自然结束；代价是失去「死循环自动熔断」保护，由 ML 人格的轮询监控兜底。
+  cpu_time_seconds: 0
+  low_integrity: true
+  redirect_env_dirs: true
+
+
+# ── 进化链（任务后异步「记忆沉淀」） ──────────────────────────
+# 一次模型调用产出三段：
+#   task_digest      本次任务结构化摘要
+#   memory_digest    项目视角的「决策/事实/待办」
+#   agent_memory     智能体第一人称跨项目经验簿
+# 不阻塞用户响应；任一段失败仅记日志。
+evolution:
+  enabled: true
+  auto_after_task: true
+  # 任务后额外产出「待审批 SKILL.md 草稿」→ skill_drafts 表（status=pending）。
+  # 只进审批队列，不直接写技能库；管理员在「进化审批」页审核通过才固化。
+  skill_draft_enabled: true
+
+
+# ── 诊断 / 可观测性 ────────────────────────────────────────────
+diagnostics:
+  dump_after_chat: false   # 每轮 chat 完成后自动落盘 turn_*.md，调试上下文累积膨胀用
+
+
+# ── 多用户鉴权 / 权限 ──────────────────────────────────────────
+# 引入「多用户 + 会话/项目隔离」后，所有业务接口默认需要登录（Bearer token）。
+# 鉴权实现零外部依赖：密码 PBKDF2、令牌 HMAC-SHA256 签名（均为 Python 标准库）。
+#
+# 安全要点（生产环境）：
+#   - secret 务必通过环境变量 CANCER_CLAW_AUTH_SECRET 注入随机长串，不要提交进 git
+#   - bootstrap 管理员密码通过 CANCER_CLAW_AUTH_BOOTSTRAP_PASSWORD 注入
+#   - 本地单机开发可把 enabled 设为 false 旁路鉴权（回落内置本地超级用户）
+auth:
+  enabled: true                  # 鉴权总开关；false = 旁路（本地超级用户，无需登录）
+  secret: ""                     # HMAC 签名密钥；留空则进程启动时随机生成（仅开发）
+  token_ttl_hours: 168           # access token 有效期（小时），默认 7 天
+  allow_registration: false      # 自助注册启动默认（关闭）；运行期以管理员在「用户管理」页的开关为准
+  bootstrap_admin_username: "admin"   # 首次启动 users 表为空时自动建的管理员用户名
+  bootstrap_admin_password: ""        # 留空则跳过引导；建议用环境变量注入

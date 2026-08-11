@@ -1,0 +1,76 @@
+app:
+  name: iCore
+  version: 0.1.0
+  debug: false
+  host: 0.0.0.0
+  port: 8000
+
+paths:
+  data_dir: /app/cancer_claw/var/state
+  projects_dir: /app/cancer_claw/var/workspaces
+  agents_dir: /app/cancer_claw/var/agent_instances
+  library_crafts_dir: /app/cancer_claw/resources/knowledge/playbooks
+  personas_dir: /app/cancer_claw/resources/persona_profiles
+  tool_path_allow_extra: []
+
+database:
+  path: /app/cancer_claw/var/state/cancer_claw.db
+
+providers:
+  - id: moonshot
+    name: Moonshot Kimi
+    base_url: https://api.moonshot.cn/v1
+    api_key: ""
+    enabled: true
+    priority: 0
+    models:
+      - id: kimi-k2.6
+        role: general
+      - id: kimi-k2.6
+        role: fast
+      - id: kimi-k2.6
+        role: complex
+
+memory:
+  user_memory_dir: /app/cancer_claw/var/state/user_memory
+
+skills:
+  enabled: true
+  scan_paths:
+    - /app/cancer_claw/resources/knowledge/skill_packs
+  uploads_dir: /app/cancer_claw/resources/knowledge/skill_packs/uploads
+  watch: false
+  l1_max_token_budget: 8000
+  l1_max_chars_per_entry: 240
+  pinned: []
+
+logging:
+  level: INFO
+  format: json
+
+sandbox:
+  mode: "off"
+  max_memory_mb: 8192
+  max_processes: 96
+  cpu_time_seconds: 0
+  low_integrity: false
+  redirect_env_dirs: false
+
+evolution:
+  enabled: true
+  auto_after_task: true
+  skill_draft_enabled: true
+
+diagnostics:
+  dump_after_chat: false
+
+auth:
+  enabled: true
+  secret: ""
+  token_ttl_hours: 168
+  allow_registration: false
+  bootstrap_admin_username: admin
+  bootstrap_admin_password: ""
+
+features:
+  project_sharing: false

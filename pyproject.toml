@@ -1,0 +1,96 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cancer-claw"
+version = "0.1.0"
+description = "iCore — 医学 / 科研场景下的 AI 协作框架"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Proprietary" }
+authors = [
+    { name = "OneKeyJune", email = "onekeyjune@gmail.com" },
+]
+keywords = ["ai", "agent", "medical", "research", "llm"]
+
+dependencies = [
+    # Web 框架
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
+    "starlette>=0.36",
+    # multipart 上传（FastAPI 的 UploadFile 隐式依赖；显式列出避免裸环境报错）
+    "python-multipart>=0.0.9",
+
+    # 数据校验 / 配置
+    "pydantic>=2.6",
+    "PyYAML>=6.0",
+
+    # SQLite 异步驱动（数据迁移脚本 migrate_sqlite_to_pg.py 仍需读旧库）
+    "aiosqlite>=0.20",
+    # PostgreSQL 异步驱动（多 worker 生产主库，替代 SQLite 写锁）
+    "asyncpg>=0.29",
+    # Redis 异步客户端（跨进程 SessionHub 事件总线 + 分布式限流 + 会话锁）
+    "redis>=5.0",
+    # LLM SDK（OpenAI 兼容协议；通义千问 / DeepSeek 等都走这套）
+    "openai>=1.30",
+    "httpx>=0.27",
+
+    # 日志
+    "structlog>=24.1",
+
+    # token 估算 / 切片
+    "tiktoken>=0.7",
+
+    # PPT 解析（pptx_read 工具依赖）
+    "python-pptx>=1.0",
+
+    # 系统资源监控（后台实时监控：CPU/内存/磁盘/网络）
+    "psutil>=5.9",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=4.1",
+    "ruff>=0.4",
+    "mypy>=1.10",
+]
+# Windows 防逆向打包：把后端编译成原生二进制（无 .py 源码泄露）
+# 用法见 build_windows.ps1；需配 C 编译器（Nuitka 会自动拉 MinGW 或用 MSVC）
+build = [
+    "nuitka>=2.4",
+    "ordered-set>=4.1",
+    "zstandard>=0.22",
+]
+
+[project.urls]
+Homepage = "https://github.com/onekeyjune/cancer-claw"
+Documentation = "https://github.com/onekeyjune/cancer-claw/tree/main/docs"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["cancer_claw*"]
+exclude = ["cancer_claw.var*", "tests*"]
+
+[tool.setuptools.package-data]
+cancer_claw = [
+    "resources/prompt_templates/**/*.md",
+    "resources/knowledge/**/*.md",
+    "resources/vault/**/*.md",
+    "resources/persona_profiles/*.md",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = ["E501"]   # line-too-long 由格式化工具处理

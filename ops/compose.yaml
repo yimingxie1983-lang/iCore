@@ -1,0 +1,45 @@
+name: icore
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: ops/docker/Dockerfile
+    image: icore-app:latest
+    container_name: icore-app
+    init: true
+    user: "${APP_UID:-1000}:${APP_GID:-1000}"
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      ONEKEY_CONFIG: /app/ops/config/production.yaml
+      CANCER_CLAW_APP_HOST: 0.0.0.0
+      CANCER_CLAW_APP_PORT: 8000
+      CANCER_CLAW_APP_DEBUG: "false"
+      CANCER_CLAW_DATABASE_PATH: /app/cancer_claw/var/state/cancer_claw.db
+      CANCER_CLAW_REDIS_URL: ""
+      CANCER_CLAW_DB_URL: ""
+    ports:
+      - "${APP_PORT:-8000}:8000"
+    volumes:
+      - ./data/state:/app/cancer_claw/var/state
+      - ./data/workspaces:/app/cancer_claw/var/workspaces
+      - ./data/agent_instances:/app/cancer_claw/var/agent_instances
+      - ./data/persona_profiles:/app/cancer_claw/resources/persona_profiles
+      - ./data/playbooks:/app/cancer_claw/resources/knowledge/playbooks
+      - ./data/skill_uploads:/app/cancer_claw/resources/knowledge/skill_packs/uploads
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - -fsS
+        - http://127.0.0.1:8000/api/health
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 90s
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: ${APP_MEMORY_LIMIT:-8g}
+    cpus: ${APP_CPU_LIMIT:-4}

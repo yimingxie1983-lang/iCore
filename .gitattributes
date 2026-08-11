@@ -1,0 +1,7 @@
+*.sh text eol=lf
+ops/deploy.sh text eol=lf
+ops/docker/Dockerfile text eol=lf
+ops/compose.yaml text eol=lf
+ops/env.example text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
