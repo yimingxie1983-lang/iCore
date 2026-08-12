@@ -82,7 +82,7 @@ async def admin_list_projects(
     date_to: str = Query("", description="创建日期止，YYYY-MM-DD"),
     running: bool | None = Query(None, description="true=运行中 / false=未运行"),
     status: str = Query("", max_length=20, description="active / paused / frozen"),
-    limit: int = Query(20, ge=1, le=100),
+    limit: int = Query(20, ge=1, le=500),
     offset: int = Query(0, ge=0),
     _admin: dict = Depends(require_admin),
 ) -> AdminProjectListResp:

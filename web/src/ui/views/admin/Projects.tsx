@@ -30,7 +30,8 @@ import { toast } from '@/ui/widgets/ui/sonner'
 import PageHeader from '@/ui/widgets/common/PageHeader'
 import { parseBackendTime } from '@/shared/foundation/utils'
 
-const PAGE_SIZE = 20
+// 管理列表一次展示全部项目（上限 500，超出走分页）
+const PAGE_SIZE = 500
 
 function fmtDate(s?: string | null): string {
   if (!s) return '—'
@@ -100,6 +101,7 @@ export default function AdminProjects() {
   const { data, isLoading } = useQuery({
     queryKey: ['admin-projects', params],
     queryFn: () => api.adminListProjects(params),
+    refetchInterval: 15_000,
   })
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['admin-projects'] })

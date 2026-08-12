@@ -79,6 +79,13 @@ async def test_admin_list_projects_filters(client):
     )
     assert resp.json()["total"] == 2
 
+    # 大分页：一次返回全部项目
+    resp = await client.get(
+        "/api/admin/projects", params={"limit": 500}, headers=ah
+    )
+    assert resp.status_code == 200
+    assert resp.json()["total"] == 2
+
 
 async def test_non_admin_forbidden(client):
     await _register(client, "boss")  # 第一个注册用户是 admin
