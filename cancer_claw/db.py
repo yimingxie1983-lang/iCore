@@ -316,6 +316,8 @@ _PG_ADD_COLUMNS = [
     ("projects", "visibility", "TEXT DEFAULT 'private'"),
     ("projects", "market_default_role", "TEXT DEFAULT 'viewer'"),
     ("users", "credits_balance", "INTEGER NOT NULL DEFAULT 0"),
+    ("users", "token_version", "INTEGER NOT NULL DEFAULT 0"),
+    ("users", "email_verified", "INTEGER NOT NULL DEFAULT 0"),
     ("conversation_history", "platform_id", "TEXT"),
     ("conversation_history", "session_id", "TEXT"),
     ("conversation_history", "tool_calls_json", "TEXT"),
@@ -816,6 +818,33 @@ _TABLE_SCHEMAS = [
     )
     """,
 
+
+    """
+    CREATE TABLE IF NOT EXISTS auth_tokens (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        token_hash TEXT NOT NULL UNIQUE,
+        expires_at TIMESTAMP NOT NULL,
+        used_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id)
+    )
+    """,
+
+
+    """
+    CREATE TABLE IF NOT EXISTS auth_events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id TEXT,
+        username TEXT DEFAULT '',
+        event_type TEXT NOT NULL,
+        ip TEXT DEFAULT '',
+        detail TEXT DEFAULT '',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+
 ]
 
 _INDEX_SCHEMAS = [
@@ -872,6 +901,12 @@ _INDEX_SCHEMAS = [
     "CREATE INDEX IF NOT EXISTS idx_credit_tx_user ON credit_transactions(user_id, created_at DESC)",
 
     "CREATE INDEX IF NOT EXISTS idx_credit_tx_type ON credit_transactions(type, created_at DESC)",
+
+    "CREATE INDEX IF NOT EXISTS idx_auth_tokens_hash ON auth_tokens(token_hash)",
+    "CREATE INDEX IF NOT EXISTS idx_auth_tokens_user ON auth_tokens(user_id, kind, created_at DESC)",
+
+    "CREATE INDEX IF NOT EXISTS idx_auth_events_created ON auth_events(created_at DESC)",
+    "CREATE INDEX IF NOT EXISTS idx_auth_events_user ON auth_events(user_id, created_at DESC)",
 ]
 
 async def _create_tables(db: aiosqlite.Connection):
@@ -910,6 +945,14 @@ async def _create_tables(db: aiosqlite.Connection):
 
     await _migrate_add_column_if_missing(
         db, "users", "credits_balance", "INTEGER DEFAULT 0"
+    )
+
+    await _migrate_add_column_if_missing(
+        db, "users", "token_version", "INTEGER NOT NULL DEFAULT 0"
+    )
+
+    await _migrate_add_column_if_missing(
+        db, "users", "email_verified", "INTEGER NOT NULL DEFAULT 0"
     )
 
 

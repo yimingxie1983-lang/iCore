@@ -19,7 +19,8 @@ VALID_MEMBER_ROLES = (MEMBER_EDITOR, MEMBER_VIEWER)
 
 _USER_PUBLIC_COLS = (
     "id, username, email, display_name, role, status, "
-    "COALESCE(credits_balance, 0), created_at, updated_at"
+    "COALESCE(credits_balance, 0), created_at, updated_at, "
+    "COALESCE(email_verified, 0), COALESCE(token_version, 0)"
 )
 
 def _row_to_user(row: Any) -> dict[str, Any]:
@@ -33,6 +34,8 @@ def _row_to_user(row: Any) -> dict[str, Any]:
         "credits_balance": int(row[6] or 0),
         "created_at": row[7],
         "updated_at": row[8],
+        "email_verified": bool(row[9]),
+        "token_version": int(row[10] or 0),
     }
 
 async def count_users() -> int:
@@ -70,7 +73,7 @@ async def get_user_with_hash(username: str) -> dict[str, Any] | None:
         return None
     user = _row_to_user(row)
 
-    user["password_hash"] = row[9]
+    user["password_hash"] = row[11]
     return user
 
 async def list_users() -> list[dict[str, Any]]:
@@ -139,6 +142,7 @@ async def update_user(
     if password:
         sets.append("password_hash = ?")
         params.append(hash_password(password))
+        sets.append("token_version = COALESCE(token_version, 0) + 1")
 
     if not sets:
         return await get_user_by_id(user_id)
@@ -158,6 +162,151 @@ async def delete_user(user_id: str) -> None:
     await db.execute("DELETE FROM user_roles WHERE user_id = ?", (user_id,))
     await db.execute("DELETE FROM users WHERE id = ?", (user_id,))
     await db.commit()
+
+async def get_user_by_email(email: str) -> dict[str, Any] | None:
+
+    if not email or not email.strip():
+        return None
+    db = await get_read_db()
+    cur = await db.execute(
+        f"SELECT {_USER_PUBLIC_COLS} FROM users WHERE email = ? COLLATE NOCASE",
+        (email.strip(),),
+    )
+    row = await cur.fetchone()
+    return _row_to_user(row) if row else None
+
+async def get_user_by_username_or_email(
+    username: str, email: str = ""
+) -> dict[str, Any] | None:
+
+    if email and email.strip():
+        found = await get_user_by_email(email)
+        if found:
+            return found
+    return await get_user_by_username(username)
+
+async def bump_token_version(user_id: str) -> int:
+
+    db = await get_db()
+    await db.execute(
+        "UPDATE users SET token_version = COALESCE(token_version, 0) + 1, "
+        "updated_at = ? WHERE id = ?",
+        (datetime.now(timezone.utc).isoformat(), user_id),
+    )
+    await db.commit()
+    cur = await db.execute(
+        "SELECT COALESCE(token_version, 0) FROM users WHERE id = ?", (user_id,)
+    )
+    row = await cur.fetchone()
+    return int(row[0]) if row else 0
+
+async def update_password(user_id: str, password: str) -> dict[str, Any] | None:
+
+    db = await get_db()
+    await db.execute(
+        "UPDATE users SET password_hash = ?, "
+        "token_version = COALESCE(token_version, 0) + 1, updated_at = ? "
+        "WHERE id = ?",
+        (hash_password(password), datetime.now(timezone.utc).isoformat(), user_id),
+    )
+    await db.commit()
+    return await get_user_by_id(user_id)
+
+async def set_email_verified(user_id: str) -> None:
+
+    db = await get_db()
+    await db.execute(
+        "UPDATE users SET email_verified = 1, updated_at = ? WHERE id = ?",
+        (datetime.now(timezone.utc).isoformat(), user_id),
+    )
+    await db.commit()
+
+async def create_auth_token(
+    user_id: str, kind: str, token_hash: str, expires_at: datetime
+) -> None:
+
+    db = await get_db()
+    await db.execute(
+        """INSERT INTO auth_tokens (user_id, kind, token_hash, expires_at, created_at)
+           VALUES (?, ?, ?, ?, ?)""",
+        (
+            user_id,
+            kind,
+            token_hash,
+            expires_at.isoformat(),
+            datetime.now(timezone.utc).isoformat(),
+        ),
+    )
+    await db.commit()
+
+async def consume_auth_token(token_hash: str, kind: str) -> str | None:
+
+    db = await get_db()
+    cur = await db.execute(
+        """SELECT user_id FROM auth_tokens
+           WHERE token_hash = ? AND kind = ? AND used_at IS NULL
+             AND expires_at > ?""",
+        (token_hash, kind, datetime.now(timezone.utc).isoformat()),
+    )
+    row = await cur.fetchone()
+    if not row:
+        return None
+    await db.execute(
+        "UPDATE auth_tokens SET used_at = ? WHERE token_hash = ?",
+        (datetime.now(timezone.utc).isoformat(), token_hash),
+    )
+    await db.commit()
+    return str(row[0])
+
+async def record_auth_event(
+    user_id: str | None,
+    username: str,
+    event_type: str,
+    ip: str = "",
+    detail: str = "",
+) -> None:
+
+    db = await get_db()
+    await db.execute(
+        """INSERT INTO auth_events (user_id, username, event_type, ip, detail, created_at)
+           VALUES (?, ?, ?, ?, ?, ?)""",
+        (
+            user_id,
+            username or "",
+            event_type,
+            ip or "",
+            detail or "",
+            datetime.now(timezone.utc).isoformat(),
+        ),
+    )
+    await db.commit()
+
+async def list_auth_events(
+    limit: int = 50, offset: int = 0
+) -> tuple[int, list[dict[str, Any]]]:
+
+    db = await get_db()
+    cur = await db.execute("SELECT COUNT(*) FROM auth_events")
+    total = int((await cur.fetchone())[0])
+    cur = await db.execute(
+        """SELECT id, user_id, username, event_type, ip, detail, created_at
+           FROM auth_events ORDER BY id DESC LIMIT ? OFFSET ?""",
+        (limit, offset),
+    )
+    rows = await cur.fetchall()
+    items = [
+        {
+            "id": r[0],
+            "user_id": r[1],
+            "username": r[2] or "",
+            "event_type": r[3],
+            "ip": r[4] or "",
+            "detail": r[5] or "",
+            "created_at": r[6],
+        }
+        for r in rows
+    ]
+    return total, items
 
 async def add_or_update_member(
     project_id: str, user_id: str, role: str = MEMBER_EDITOR
