@@ -152,8 +152,8 @@ async def _resolve_access(
     if project is None or role is None:
         raise HTTPException(status_code=404, detail=f"项目 {project_id} 不存在")
 
-    if need in ("write", "manage") and project.get("status") == "frozen" and not is_admin(user):
-        raise HTTPException(status_code=403, detail="项目已冻结，仅管理员可操作")
+    if need in ("write", "manage") and project.get("status") == "frozen":
+        raise HTTPException(status_code=403, detail="项目已冻结，仅可查看")
     if need == "write" and role == "viewer":
         raise HTTPException(status_code=403, detail="只读成员无写入权限")
     if need == "manage" and role != "owner":

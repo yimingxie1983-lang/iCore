@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { ColumnDef } from '@tanstack/react-table'
-import { ChevronLeft, ChevronRight, FolderKanban, Pause, Play, Snowflake, Sun, Trash2 } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { ChevronLeft, ChevronRight, Eye, FolderKanban, Pause, Play, Snowflake, Sun, Trash2 } from 'lucide-react'
 
 import { api, type AdminProject } from '@/client/services/client'
 import { Button } from '@/ui/widgets/ui/button'
@@ -68,6 +69,7 @@ function StatusBadge({ status }: { status: AdminProject['status'] }) {
 
 export default function AdminProjects() {
   const qc = useQueryClient()
+  const nav = useNavigate()
   const [q, setQ] = useState('')
   const [owner, setOwner] = useState('')
   const [dateFrom, setDateFrom] = useState('')
@@ -179,6 +181,9 @@ export default function AdminProjects() {
           const p = row.original
           return (
             <div className="flex items-center gap-1">
+              <Button variant="outline" size="sm" onClick={() => nav(`/chat/${p.id}`)}>
+                <Eye className="h-3.5 w-3.5" /> 查看
+              </Button>
               {p.status === 'active' && (
                 <Button
                   variant="outline"

@@ -34,6 +34,7 @@ async def _make_project(client, headers: dict, name="demo") -> str:
 async def test_frozen_blocks_write_and_chat_but_allows_read(client):
     admin = await _register(client, "boss")
     alice = await _register(client, "alice")
+    ah = {"Authorization": f"Bearer {admin['access_token']}"}
     h1 = {"Authorization": f"Bearer {alice['access_token']}"}
     pid = await _make_project(client, h1)
 
@@ -58,6 +59,20 @@ async def test_frozen_blocks_write_and_chat_but_allows_read(client):
         "/api/chat/sync", json={"message": "hi"}, params={"project_id": pid}, headers=h1
     )
     assert resp.status_code == 403
+
+    # 冻结后管理员同样不能写操作 / 发起运行，但可以查看
+    resp = await client.patch(
+        f"/api/projects/{pid}", json={"description": "z"}, headers=ah
+    )
+    assert resp.status_code == 403
+
+    resp = await client.post(
+        f"/api/projects/{pid}/chat", json={"message": "hi"}, headers=ah
+    )
+    assert resp.status_code == 403
+
+    resp = await client.get(f"/api/projects/{pid}", headers=ah)
+    assert resp.status_code == 200
 
     resp = await client.get(f"/api/projects/{pid}", headers=h1)
     assert resp.status_code == 200

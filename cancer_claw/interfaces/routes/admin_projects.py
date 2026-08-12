@@ -251,6 +251,8 @@ async def admin_delete_project(
     project_id: str, admin: dict = Depends(require_admin)
 ) -> None:
     await _require_project(project_id)
+    if await get_project_status(project_id) == PROJECT_STATUS_FROZEN:
+        raise HTTPException(status_code=403, detail="项目已冻结，请先解冻再删除")
     await cancel_project_runs(project_id)
     await delete_project_full(project_id)
     logger.info(

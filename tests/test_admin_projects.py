@@ -147,6 +147,26 @@ async def test_freeze_and_unfreeze(client):
     assert resp.json()["status"] == "active"
 
 
+async def test_admin_delete_frozen_project_blocked(client):
+    admin = await _register(client, "boss")
+    alice = await _register(client, "alice")
+    ah = {"Authorization": f"Bearer {admin['access_token']}"}
+    h1 = {"Authorization": f"Bearer {alice['access_token']}"}
+    pid = await _create(client, h1, "frozen-delete")
+
+    resp = await client.post(f"/api/admin/projects/{pid}/freeze", headers=ah)
+    assert resp.status_code == 200
+
+    resp = await client.delete(f"/api/admin/projects/{pid}", headers=ah)
+    assert resp.status_code == 403
+
+    resp = await client.post(f"/api/admin/projects/{pid}/unfreeze", headers=ah)
+    assert resp.status_code == 200
+
+    resp = await client.delete(f"/api/admin/projects/{pid}", headers=ah)
+    assert resp.status_code == 204
+
+
 async def test_admin_delete_project(client):
     admin = await _register(client, "boss")
     alice = await _register(client, "alice")
