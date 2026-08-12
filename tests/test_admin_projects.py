@@ -70,6 +70,7 @@ async def test_admin_list_projects_filters(client):
 
 
 async def test_non_admin_forbidden(client):
+    await _register(client, "boss")  # 第一个注册用户是 admin
     alice = await _register(client, "alice")
     headers = {"Authorization": f"Bearer {alice['access_token']}"}
     resp = await client.get("/api/admin/projects", headers=headers)

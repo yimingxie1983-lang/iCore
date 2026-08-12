@@ -21,7 +21,6 @@ async def _make_project(client, headers: dict, name="demo") -> str:
 async def test_frozen_blocks_write_and_chat_but_allows_read(client):
     admin = await _register(client, "boss")
     alice = await _register(client, "alice")
-    ah = {"Authorization": f"Bearer {admin['access_token']}"}
     h1 = {"Authorization": f"Bearer {alice['access_token']}"}
     pid = await _make_project(client, h1)
 
@@ -62,7 +61,6 @@ async def test_frozen_blocks_write_and_chat_but_allows_read(client):
 async def test_paused_blocks_chat_but_allows_patch(client):
     admin = await _register(client, "boss")
     alice = await _register(client, "alice")
-    ah = {"Authorization": f"Bearer {admin['access_token']}"}
     h1 = {"Authorization": f"Bearer {alice['access_token']}"}
     pid = await _make_project(client, h1)
 

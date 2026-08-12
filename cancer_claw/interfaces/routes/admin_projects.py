@@ -119,7 +119,7 @@ async def admin_list_projects(
                p.created_at, p.updated_at
         FROM projects p
         LEFT JOIN users u ON u.id = p.owner_id
-        WHERE {where}
+        WHERE {" AND ".join(where)}
         ORDER BY p.updated_at DESC
         """,
         params,
