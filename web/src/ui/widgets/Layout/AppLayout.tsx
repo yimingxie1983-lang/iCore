@@ -1,11 +1,12 @@
 
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   Bot,
   BrainCircuit,
+  ChevronDown,
   FolderOpen,
   FolderKanban,
   Gauge,
@@ -16,7 +17,6 @@ import {
   Network,
   Receipt,
   Settings,
-  Share2,
   ShieldCheck,
   ScrollText,
   Sparkles,
@@ -49,10 +49,15 @@ interface NavItem {
   feature?: string
 }
 
+interface NavGroup {
+  id: string
+  label: string
+  items: NavItem[]
+}
+
 const NAV_ITEMS: NavItem[] = [
   { to: '/chat', label: '对话工作台', icon: MessageSquare, desc: '链路 + token 计费', perm: 'menu.chat' },
   { to: '/projects', label: '项目', icon: FolderOpen, desc: '工作区 + 记忆', perm: 'menu.projects' },
-  { to: '/market', label: '共享市场', icon: Share2, desc: '发布 / 申请 / 审批', perm: 'menu.market', feature: 'project_sharing' },
   { to: '/agents', label: '智能体', icon: Bot, desc: 'soul + 人格库', perm: 'menu.agents' },
   { to: '/skills', label: '技能库', icon: Library, desc: 'SKILL.md 生态 / 拖拽上传', perm: 'menu.skills' },
   { to: '/memory', label: '记忆库', icon: BrainCircuit, desc: '项目 / 经验簿', perm: 'menu.memory' },
@@ -243,13 +248,80 @@ function NavRow({ item, onNavigate }: { item: NavItem; onNavigate?: () => void }
   )
 }
 
-function SidebarBody({
-  navItems,
-  adminItems,
+const SIDEBAR_GROUP_KEY = 'icore:sidebar:group:'
+
+function NavGroupSection({
+  group,
+  activePath,
   onNavigate,
 }: {
-  navItems: NavItem[]
-  adminItems: NavItem[]
+  group: NavGroup
+  activePath: string
+  onNavigate?: () => void
+}) {
+  const [open, setOpen] = useState(() => {
+    try {
+      return localStorage.getItem(SIDEBAR_GROUP_KEY + group.id) !== '0'
+    } catch {
+      return true
+    }
+  })
+  const hasActive = group.items.some((item) => activePath.startsWith(item.to))
+  const prevPathRef = useRef('')
+
+  // 直接进入某分组内的页面时自动展开该分组；手动折叠当前分组不会被立刻重新展开。
+  useEffect(() => {
+    if (hasActive && prevPathRef.current !== activePath) {
+      setOpen(true)
+    }
+    prevPathRef.current = activePath
+  }, [activePath, hasActive])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(SIDEBAR_GROUP_KEY + group.id, open ? '1' : '0')
+    } catch {
+      // 忽略存储不可用的情况
+    }
+  }, [group.id, open])
+
+  return (
+    <div className="pt-3 first:pt-0">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-controls={`sidebar-group-${group.id}`}
+        className="flex w-full items-center justify-between rounded-md px-3 py-1.5 text-left transition-colors hover:bg-muted"
+      >
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-muted">
+          {group.label}
+        </span>
+        <ChevronDown
+          className={cn(
+            'h-3.5 w-3.5 shrink-0 text-sidebar-muted transition-transform duration-200',
+            !open && '-rotate-90',
+          )}
+        />
+      </button>
+      {open && (
+        <div id={`sidebar-group-${group.id}`} className="mt-1 space-y-0.5">
+          {group.items.map((item) => (
+            <NavRow key={item.to} item={item} onNavigate={onNavigate} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function SidebarBody({
+  groups,
+  activePath,
+  onNavigate,
+}: {
+  groups: NavGroup[]
+  activePath: string
   onNavigate?: () => void
 }) {
   const brand = useBrandVariant()
@@ -261,20 +333,14 @@ function SidebarBody({
       </div>
 
       <nav className="flex-1 space-y-0.5 overflow-y-auto px-2 py-3">
-        {navItems.map((item) => (
-          <NavRow key={item.to} item={item} onNavigate={onNavigate} />
+        {groups.map((group) => (
+          <NavGroupSection
+            key={group.id}
+            group={group}
+            activePath={activePath}
+            onNavigate={onNavigate}
+          />
         ))}
-
-        {adminItems.length > 0 && (
-          <div className="pt-3">
-            <div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-sidebar-muted">
-              系统管理
-            </div>
-            {adminItems.map((item) => (
-              <NavRow key={item.to} item={item} onNavigate={onNavigate} />
-            ))}
-          </div>
-        )}
       </nav>
 
       <div className="border-t border-sidebar-border px-5 py-3">
@@ -323,6 +389,10 @@ export default function AppLayout() {
   const adminItems = ADMIN_NAV_ITEMS.filter(
     (i) => checkPermission(user, i.perm) && featureOn(i.feature),
   )
+  const groups: NavGroup[] = [
+    ...(navItems.length > 0 ? [{ id: 'workspace', label: '工作区', items: navItems }] : []),
+    ...(adminItems.length > 0 ? [{ id: 'system', label: '系统管理', items: adminItems }] : []),
+  ]
   const currentItem = [...navItems, ...adminItems].find((i) =>
     loc.pathname.startsWith(i.to),
   )
@@ -331,7 +401,7 @@ export default function AppLayout() {
     <div className="flex h-screen min-h-0 bg-background">
       {}
       <aside className="hidden w-72 shrink-0 flex-col border-r border-sidebar-border bg-sidebar lg:flex">
-        <SidebarBody navItems={navItems} adminItems={adminItems} />
+        <SidebarBody groups={groups} activePath={loc.pathname} />
       </aside>
 
       {}
@@ -355,8 +425,8 @@ export default function AppLayout() {
               </button>
             </div>
             <SidebarBody
-              navItems={navItems}
-              adminItems={adminItems}
+              groups={groups}
+              activePath={loc.pathname}
               onNavigate={() => setMobileNavOpen(false)}
             />
           </aside>
