@@ -226,38 +226,13 @@ async def update_project(
 async def delete_project(ctx: dict = Depends(require_project_manage)):
 
     project_id = ctx["project_id"]
+    from cancer_claw.services.projects.service import (
+        cancel_project_runs,
+        delete_project_full,
+    )
 
-
-
-
-
-
-
-
-
-    from cancer_claw.db import transaction
-
-    async with transaction() as db:
-        await db.execute("DELETE FROM project_members WHERE project_id = ?", (project_id,))
-        await db.execute("DELETE FROM project_access_requests WHERE project_id = ?", (project_id,))
-        await db.execute("DELETE FROM project_teams WHERE project_id = ?", (project_id,))
-        await db.execute("DELETE FROM task_logs WHERE project_id = ?", (project_id,))
-        await db.execute("DELETE FROM plans WHERE project_id = ?", (project_id,))
-        await db.execute("DELETE FROM monitor_events WHERE project_id = ?", (project_id,))
-        await db.execute("DELETE FROM platforms WHERE project_id = ?", (project_id,))
-        await db.execute("DELETE FROM chat_sessions WHERE project_id = ?", (project_id,))
-        await db.execute("DELETE FROM conversation_history WHERE project_id = ?", (project_id,))
-        await db.execute("DELETE FROM agent_events WHERE project_id = ?", (project_id,))
-        await db.execute("DELETE FROM projects WHERE id = ?", (project_id,))
-
-
-
-    try:
-        from cancer_claw.capabilities.toolkit.executor import close_project_executor
-        await close_project_executor(project_id)
-    except Exception as e:
-        logger.warning("project_sandbox_close_error", id=project_id, error=str(e))
-
+    await cancel_project_runs(project_id)
+    await delete_project_full(project_id)
     logger.info("project_deleted", id=project_id)
 
 class MemberInfo(BaseModel):
