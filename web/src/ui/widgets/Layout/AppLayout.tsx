@@ -7,6 +7,7 @@ import {
   Bot,
   BrainCircuit,
   FolderOpen,
+  FolderKanban,
   Gauge,
   Library,
   LogOut,
@@ -58,6 +59,7 @@ const NAV_ITEMS: NavItem[] = [
 ]
 
 const ADMIN_NAV_ITEMS: NavItem[] = [
+  { to: '/admin/projects', label: '项目管理', icon: FolderKanban, desc: '全量项目 / 暂停 / 冻结', perm: 'menu.project_manage' },
   { to: '/providers', label: '模型供应商', icon: Network, desc: '路由 + API key', perm: 'menu.providers' },
   { to: '/admin/users', label: '用户管理', icon: Users, desc: '多用户 / 项目授权', perm: 'menu.users' },
   { to: '/admin/roles', label: '角色管理', icon: ShieldCheck, desc: 'RBAC 角色 / 权限分配', perm: 'menu.roles' },
