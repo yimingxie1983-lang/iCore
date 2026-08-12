@@ -181,6 +181,9 @@ class AuthConfig(BaseModel):
     token_ttl_hours: int = 168
     allow_registration: bool = False
     min_password_length: int = 8
+    reset_token_ttl_minutes: int = 30
+    email_verify_token_ttl_hours: int = 24
+    file_url_ttl_seconds: int = 300
     bootstrap_admin_username: str = "admin"
     bootstrap_admin_password: str = ""
 
@@ -317,6 +320,27 @@ def _apply_env_overrides(settings: Settings) -> Settings:
         try:
             settings.auth.min_password_length = int(
                 os.environ["CANCER_CLAW_AUTH_MIN_PASSWORD_LENGTH"]
+            )
+        except ValueError:
+            pass
+    if os.environ.get("CANCER_CLAW_AUTH_RESET_TOKEN_TTL_MINUTES"):
+        try:
+            settings.auth.reset_token_ttl_minutes = int(
+                os.environ["CANCER_CLAW_AUTH_RESET_TOKEN_TTL_MINUTES"]
+            )
+        except ValueError:
+            pass
+    if os.environ.get("CANCER_CLAW_AUTH_EMAIL_VERIFY_TTL_HOURS"):
+        try:
+            settings.auth.email_verify_token_ttl_hours = int(
+                os.environ["CANCER_CLAW_AUTH_EMAIL_VERIFY_TTL_HOURS"]
+            )
+        except ValueError:
+            pass
+    if os.environ.get("CANCER_CLAW_AUTH_FILE_URL_TTL_SECONDS"):
+        try:
+            settings.auth.file_url_ttl_seconds = int(
+                os.environ["CANCER_CLAW_AUTH_FILE_URL_TTL_SECONDS"]
             )
         except ValueError:
             pass

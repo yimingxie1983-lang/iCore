@@ -1,27 +1,33 @@
-
-
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel, Field
 
-from cancer_claw.services.identity import repo
-from cancer_claw.services.identity import settings_repo
+from cancer_claw.config import settings
 from cancer_claw.services.credits import repo as billing_repo
+from cancer_claw.services.identity import mail, repo
+from cancer_claw.services.identity import settings_repo
 from cancer_claw.services.identity.deps import (
     get_auth_secret,
     get_current_user,
     require_admin,
 )
-from cancer_claw.services.identity.security import create_access_token, verify_password
+from cancer_claw.services.identity.security import (
+    create_access_token,
+    generate_token,
+    hash_token,
+    validate_password_strength,
+    verify_password,
+)
 from cancer_claw.services.identity.throttle import login_throttle
-from cancer_claw.config import settings
 
 logger = structlog.get_logger()
 router = APIRouter()
+
 
 class UserPublic(BaseModel):
     id: str
@@ -33,10 +39,11 @@ class UserPublic(BaseModel):
     credits_balance: int = 0
     created_at: str | None = None
     updated_at: str | None = None
-
+    email_verified: bool = False
 
     permissions: list[str] = Field(default_factory=list)
     roles: list[dict] = Field(default_factory=list)
+
 
 class RegisterReq(BaseModel):
     username: str = Field(..., min_length=3, max_length=40)
@@ -44,15 +51,18 @@ class RegisterReq(BaseModel):
     email: str = Field("", max_length=120)
     display_name: str = Field("", max_length=60)
 
+
 class LoginReq(BaseModel):
     username: str = Field(..., min_length=1, max_length=40)
     password: str = Field(..., min_length=1, max_length=128)
+
 
 class TokenResp(BaseModel):
     access_token: str
     token_type: str = "bearer"
     expires_in: int = Field(..., description="有效期（秒）")
     user: UserPublic
+
 
 class AdminCreateUserReq(BaseModel):
     username: str = Field(..., min_length=3, max_length=40)
@@ -61,6 +71,7 @@ class AdminCreateUserReq(BaseModel):
     display_name: str = Field("", max_length=60)
     role: str = Field("user", description="user / admin")
 
+
 class AdminUpdateUserReq(BaseModel):
     email: str | None = Field(None, max_length=120)
     display_name: str | None = Field(None, max_length=60)
@@ -68,15 +79,49 @@ class AdminUpdateUserReq(BaseModel):
     status: str | None = Field(None, description="active / disabled")
     password: str | None = Field(None, min_length=6, max_length=128)
 
+
 class UserListResp(BaseModel):
     total: int
     items: list[UserPublic]
 
+
 class RegistrationStatusResp(BaseModel):
     allow_registration: bool = Field(..., description="当前是否开放自助注册")
 
+
 class RegistrationToggleReq(BaseModel):
     allow_registration: bool = Field(..., description="True=开放自助注册 / False=关闭")
+
+
+class ChangePasswordReq(BaseModel):
+    current_password: str = Field(..., min_length=1, max_length=128)
+    new_password: str = Field(..., min_length=1, max_length=128)
+
+
+class ForgotPasswordReq(BaseModel):
+    username: str = Field("", max_length=40)
+    email: str = Field("", max_length=120)
+
+
+class ResetPasswordReq(BaseModel):
+    token: str = Field(..., min_length=8, max_length=256)
+    new_password: str = Field(..., min_length=1, max_length=128)
+
+
+class AuthEventItem(BaseModel):
+    id: int
+    user_id: str | None = None
+    username: str = ""
+    event_type: str
+    ip: str = ""
+    detail: str = ""
+    created_at: str | None = None
+
+
+class AuthEventListResp(BaseModel):
+    total: int
+    items: list[AuthEventItem]
+
 
 def _client_ip(request: Request) -> str:
 
@@ -90,6 +135,12 @@ def _client_ip(request: Request) -> str:
         return real.strip()
     return request.client.host if request.client else "unknown"
 
+
+def _now() -> datetime:
+
+    return datetime.now(timezone.utc)
+
+
 async def _grant_initial_credits(user_id: str) -> None:
 
     try:
@@ -98,6 +149,7 @@ async def _grant_initial_credits(user_id: str) -> None:
             await billing_repo.grant_initial(user_id, amount)
     except Exception as e:
         logger.warning("initial_grant_failed", user_id=user_id, error=str(e))
+
 
 async def _attach_rbac(user: dict[str, Any]) -> dict[str, Any]:
 
@@ -110,6 +162,21 @@ async def _attach_rbac(user: dict[str, Any]) -> dict[str, Any]:
         user.setdefault("roles", [])
     return user
 
+
+async def _audit(
+    user_id: str | None,
+    username: str,
+    event_type: str,
+    ip: str,
+    detail: str = "",
+) -> None:
+
+    try:
+        await repo.record_auth_event(user_id, username, event_type, ip, detail)
+    except Exception as e:
+        logger.warning("auth_audit_failed", event=event_type, error=str(e))
+
+
 def _issue_token(user: dict[str, Any]) -> TokenResp:
     ttl = int(settings.auth.token_ttl_hours)
     token = create_access_token(
@@ -118,6 +185,7 @@ def _issue_token(user: dict[str, Any]) -> TokenResp:
         role=user["role"],
         secret=get_auth_secret(),
         ttl_hours=ttl,
+        token_version=user.get("token_version", 0),
     )
     return TokenResp(
         access_token=token,
@@ -125,15 +193,41 @@ def _issue_token(user: dict[str, Any]) -> TokenResp:
         user=UserPublic(**user),
     )
 
+
+async def _send_verify_email(user: dict[str, Any]) -> None:
+
+    token = generate_token()
+    await repo.create_auth_token(
+        user["id"],
+        "email_verify",
+        hash_token(token),
+        _now() + timedelta(hours=settings.auth.email_verify_token_ttl_hours),
+    )
+    link = f"{settings.mail.public_base_url.rstrip('/')}/login?verify_token={token}"
+    await mail.send_email_async(
+        user["email"],
+        "iCore 邮箱验证",
+        f"请点击链接完成邮箱验证（{settings.auth.email_verify_token_ttl_hours} 小时内有效）：\n{link}",
+    )
+
+
 @router.post("/auth/register", response_model=TokenResp, status_code=201)
-async def register(body: RegisterReq) -> TokenResp:
+async def register(body: RegisterReq, request: Request) -> TokenResp:
     if not await settings_repo.is_registration_open():
         raise HTTPException(status_code=403, detail="本实例未开放自助注册，请联系管理员建号")
+
+    try:
+        validate_password_strength(
+            body.password,
+            username=body.username,
+            min_length=settings.auth.min_password_length,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
     existing = await repo.get_user_by_username(body.username)
     if existing:
         raise HTTPException(status_code=409, detail="用户名已被占用")
-
 
     is_first = (await repo.count_users()) == 0
     role = repo.ROLE_ADMIN if is_first else repo.ROLE_USER
@@ -148,8 +242,17 @@ async def register(body: RegisterReq) -> TokenResp:
     await _grant_initial_credits(user["id"])
     user = await repo.get_user_by_id(user["id"]) or user
     await _attach_rbac(user)
+
+    if user.get("email") and mail.is_mail_configured():
+        try:
+            await _send_verify_email(user)
+        except Exception as e:
+            logger.warning("verify_mail_send_failed", user_id=user["id"], error=str(e))
+
+    await _audit(user["id"], user["username"], "register", _client_ip(request))
     logger.info("user_registered", username=body.username, role=role)
     return _issue_token(user)
+
 
 @router.post("/auth/login", response_model=TokenResp)
 async def login(body: LoginReq, request: Request) -> TokenResp:
@@ -160,6 +263,7 @@ async def login(body: LoginReq, request: Request) -> TokenResp:
     remaining = await login_throttle.check(identity)
     if remaining > 0:
         mins = max(1, int(remaining // 60) + 1)
+        await _audit(None, body.username, "login_locked", ip, f"remaining_s={int(remaining)}")
         logger.warning("login_locked", username=body.username, ip=ip, remaining_s=int(remaining))
         raise HTTPException(
             status_code=429,
@@ -170,6 +274,7 @@ async def login(body: LoginReq, request: Request) -> TokenResp:
 
     if not user or not verify_password(body.password, user.get("password_hash", "")):
         locked = await login_throttle.record_failure(identity)
+        await _audit(None, body.username, "login_failed", ip, f"just_locked={locked > 0}")
         logger.info("user_login_failed", username=body.username, ip=ip, just_locked=locked > 0)
         if locked > 0:
             mins = max(1, int(locked // 60))
@@ -180,14 +285,118 @@ async def login(body: LoginReq, request: Request) -> TokenResp:
         raise HTTPException(status_code=401, detail="用户名或密码错误")
 
     if user.get("status") != "active":
-
         raise HTTPException(status_code=403, detail="账号已被禁用")
 
     await login_throttle.record_success(identity)
     user.pop("password_hash", None)
     await _attach_rbac(user)
+    await _audit(user["id"], user["username"], "login_success", ip)
     logger.info("user_login", username=body.username, ip=ip)
     return _issue_token(user)
+
+
+@router.post("/auth/change-password", status_code=204)
+async def change_password(
+    body: ChangePasswordReq,
+    request: Request,
+    user: dict[str, Any] = Depends(get_current_user),
+) -> Response:
+
+    full = await repo.get_user_with_hash(user["username"])
+    if not full or not verify_password(body.current_password, full.get("password_hash", "")):
+        raise HTTPException(status_code=401, detail="当前密码不正确")
+    try:
+        validate_password_strength(
+            body.new_password,
+            username=user["username"],
+            min_length=settings.auth.min_password_length,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    await repo.update_password(user["id"], body.new_password)
+    await _audit(user["id"], user["username"], "password_changed", _client_ip(request))
+    return Response(status_code=204)
+
+
+@router.post("/auth/forgot-password", status_code=202)
+async def forgot_password(body: ForgotPasswordReq, request: Request) -> dict[str, bool]:
+
+    if not mail.is_mail_configured():
+        raise HTTPException(status_code=503, detail="系统未配置邮件服务，无法发送重置邮件")
+    ip = _client_ip(request)
+    target = await repo.get_user_by_username_or_email(body.username, body.email)
+    if target and target.get("email"):
+        token = generate_token()
+        await repo.create_auth_token(
+            target["id"],
+            "password_reset",
+            hash_token(token),
+            _now() + timedelta(minutes=settings.auth.reset_token_ttl_minutes),
+        )
+        link = f"{settings.mail.public_base_url.rstrip('/')}/login?reset_token={token}"
+        try:
+            await mail.send_email_async(
+                target["email"],
+                "iCore 密码重置",
+                f"请点击链接重置密码（{settings.auth.reset_token_ttl_minutes} 分钟内有效）：\n{link}",
+            )
+            await _audit(target["id"], target["username"], "password_reset_requested", ip)
+        except Exception as e:
+            await _audit(
+                target["id"], target["username"], "password_reset_mail_failed", ip, str(e)
+            )
+    else:
+        await _audit(None, body.username or body.email, "password_reset_requested_unknown", ip)
+    return {"ok": True}
+
+
+@router.post("/auth/reset-password")
+async def reset_password(body: ResetPasswordReq, request: Request) -> dict[str, bool]:
+
+    user_id = await repo.consume_auth_token(hash_token(body.token), "password_reset")
+    if not user_id:
+        raise HTTPException(status_code=400, detail="重置链接无效或已过期")
+    user = await repo.get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=400, detail="用户不存在")
+    try:
+        validate_password_strength(
+            body.new_password,
+            username=user["username"],
+            min_length=settings.auth.min_password_length,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    await repo.update_password(user_id, body.new_password)
+    await _audit(user_id, user["username"], "password_reset", _client_ip(request))
+    return {"ok": True}
+
+
+@router.get("/auth/verify-email")
+async def verify_email(token: str = Query(..., min_length=8, max_length=256)) -> dict[str, bool]:
+
+    user_id = await repo.consume_auth_token(hash_token(token), "email_verify")
+    if not user_id:
+        raise HTTPException(status_code=400, detail="验证链接无效或已过期")
+    await repo.set_email_verified(user_id)
+    return {"ok": True}
+
+
+@router.post("/auth/send-verification", status_code=202)
+async def send_verification(
+    request: Request, user: dict[str, Any] = Depends(get_current_user)
+) -> dict[str, bool]:
+
+    if not mail.is_mail_configured():
+        raise HTTPException(status_code=503, detail="系统未配置邮件服务")
+    if not user.get("email"):
+        raise HTTPException(status_code=400, detail="账号未绑定邮箱")
+    if user.get("email_verified"):
+        raise HTTPException(status_code=400, detail="邮箱已认证")
+    await _send_verify_email(user)
+    await _audit(user["id"], user["username"], "verify_email_sent", _client_ip(request))
+    return {"ok": True}
+
 
 @router.get("/auth/registration", response_model=RegistrationStatusResp)
 async def registration_status() -> RegistrationStatusResp:
@@ -195,6 +404,7 @@ async def registration_status() -> RegistrationStatusResp:
     return RegistrationStatusResp(
         allow_registration=await settings_repo.is_registration_open()
     )
+
 
 @router.get("/auth/me", response_model=UserPublic)
 async def me(user: dict[str, Any] = Depends(get_current_user)) -> UserPublic:
@@ -205,6 +415,7 @@ async def me(user: dict[str, Any] = Depends(get_current_user)) -> UserPublic:
         user.setdefault("roles", [])
     return UserPublic(**user)
 
+
 @router.get("/settings/registration", response_model=RegistrationStatusResp)
 async def get_registration_setting(
     _admin: dict[str, Any] = Depends(require_admin),
@@ -212,6 +423,7 @@ async def get_registration_setting(
     return RegistrationStatusResp(
         allow_registration=await settings_repo.is_registration_open()
     )
+
 
 @router.put("/settings/registration", response_model=RegistrationStatusResp)
 async def set_registration_setting(
@@ -226,17 +438,27 @@ async def set_registration_setting(
     )
     return RegistrationStatusResp(allow_registration=body.allow_registration)
 
+
 @router.get("/users", response_model=UserListResp)
 async def list_users(_admin: dict[str, Any] = Depends(require_admin)) -> UserListResp:
     items = await repo.list_users()
     return UserListResp(total=len(items), items=[UserPublic(**u) for u in items])
 
+
 @router.post("/users", response_model=UserPublic, status_code=201)
 async def create_user(
-    body: AdminCreateUserReq, _admin: dict[str, Any] = Depends(require_admin)
+    body: AdminCreateUserReq, request: Request, _admin: dict[str, Any] = Depends(require_admin)
 ) -> UserPublic:
     if body.role not in repo.VALID_ROLES:
         raise HTTPException(status_code=400, detail="role 必须是 user / admin")
+    try:
+        validate_password_strength(
+            body.password,
+            username=body.username,
+            min_length=settings.auth.min_password_length,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
     if await repo.get_user_by_username(body.username):
         raise HTTPException(status_code=409, detail="用户名已被占用")
     user = await repo.create_user(
@@ -248,25 +470,37 @@ async def create_user(
     )
     await _grant_initial_credits(user["id"])
     user = await repo.get_user_by_id(user["id"]) or user
+    await _audit(user["id"], user["username"], "admin_create_user", _client_ip(request))
     logger.info("admin_created_user", username=body.username, role=body.role)
     return UserPublic(**user)
+
 
 @router.patch("/users/{user_id}", response_model=UserPublic)
 async def update_user(
     user_id: str,
     body: AdminUpdateUserReq,
+    request: Request,
     admin: dict[str, Any] = Depends(require_admin),
 ) -> UserPublic:
     target = await repo.get_user_by_id(user_id)
     if not target:
         raise HTTPException(status_code=404, detail="用户不存在")
 
-
     if user_id == admin["id"]:
         if body.role is not None and body.role != repo.ROLE_ADMIN:
             raise HTTPException(status_code=400, detail="不能修改自己的管理员角色")
         if body.status is not None and body.status != "active":
             raise HTTPException(status_code=400, detail="不能禁用自己的账号")
+
+    if body.password:
+        try:
+            validate_password_strength(
+                body.password,
+                username=target["username"],
+                min_length=settings.auth.min_password_length,
+            )
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e)) from e
 
     try:
         updated = await repo.update_user(
@@ -280,16 +514,29 @@ async def update_user(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     assert updated is not None
+    await _audit(updated["id"], updated["username"], "admin_update_user", _client_ip(request))
     return UserPublic(**updated)
+
 
 @router.delete("/users/{user_id}", status_code=204)
 async def delete_user(
-    user_id: str, admin: dict[str, Any] = Depends(require_admin)
-):
+    user_id: str, request: Request, admin: dict[str, Any] = Depends(require_admin)
+) -> Response:
     if user_id == admin["id"]:
         raise HTTPException(status_code=400, detail="不能删除自己的账号")
     target = await repo.get_user_by_id(user_id)
     if not target:
         raise HTTPException(status_code=404, detail="用户不存在")
+    await _audit(target["id"], target["username"], "admin_delete_user", _client_ip(request))
     await repo.delete_user(user_id)
-    logger.info("admin_deleted_user", user_id=user_id)
+    return Response(status_code=204)
+
+
+@router.get("/admin/auth-events", response_model=AuthEventListResp)
+async def list_auth_events(
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    _admin: dict[str, Any] = Depends(require_admin),
+) -> AuthEventListResp:
+    total, items = await repo.list_auth_events(limit=limit, offset=offset)
+    return AuthEventListResp(total=total, items=items)

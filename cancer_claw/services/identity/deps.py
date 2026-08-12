@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 import structlog
-from fastapi import Depends, Header, HTTPException, Query
+from fastapi import Depends, Header, HTTPException, Query, Request
 
 from cancer_claw.services.identity import repo
 from cancer_claw.services.identity.security import TokenError, decode_access_token, generate_secret
@@ -68,6 +68,8 @@ async def get_current_user(
         raise HTTPException(status_code=401, detail="用户不存在")
     if user.get("status") != "active":
         raise HTTPException(status_code=403, detail="账号已被禁用")
+    if int(payload.get("ver", 0) or 0) != int(user.get("token_version", 0) or 0):
+        raise HTTPException(status_code=401, detail="登录凭证已失效，请重新登录")
 
 
     try:
@@ -155,6 +157,16 @@ async def _resolve_access(
         raise HTTPException(status_code=403, detail="仅项目所有者或管理员可管理")
 
     return ProjectContext(user=user, project_id=project_id, role=role, project=project)
+
+async def resolve_access_from_request(
+    request: Request, project_id: str, *, need: str
+) -> ProjectContext:
+
+    user = await get_current_user(
+        authorization=request.headers.get("authorization"),
+        access_token=request.query_params.get("access_token"),
+    )
+    return await _resolve_access(project_id, user, need=need)
 
 async def require_project_read(
     project_id: str, user: dict[str, Any] = Depends(get_current_user)
