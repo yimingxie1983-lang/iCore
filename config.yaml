@@ -191,11 +191,14 @@ auth:
   enabled: true                  # 鉴权总开关；false = 旁路（本地超级用户，无需登录）
   secret: ""                     # HMAC 签名密钥；留空则进程启动时随机生成（仅开发）
   token_ttl_hours: 168           # access token 有效期（小时），默认 7 天
-  allow_registration: false      # 自助注册启动默认（关闭）；运行期以管理员在「用户管理」页的开关为准
+  allow_registration: true       # 自助注册启动默认（开放）；运行期以管理员在「用户管理」页的开关为准
   min_password_length: 8         # 密码最小长度（注册 / 改密 / 管理员建号均校验）
   reset_token_ttl_minutes: 30    # 密码重置链接有效期（分钟）
   email_verify_token_ttl_hours: 24  # 邮箱验证链接有效期（小时）
   file_url_ttl_seconds: 300      # 文件签名 URL 有效期（秒）
+  registration_invite_code: ""   # 邀请码；留空 = 开放注册但需算术验证码，非空 = 凭码注册免验证码
+  captcha_threshold: 3           # 登录连续失败达到该次数后，要求人机验证
+  captcha_ttl_seconds: 120       # 验证码有效期（秒）
   bootstrap_admin_username: "admin"   # 首次启动 users 表为空时自动建的管理员用户名
   bootstrap_admin_password: ""        # 留空则跳过引导；建议用环境变量注入
 

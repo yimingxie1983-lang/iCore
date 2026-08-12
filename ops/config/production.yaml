@@ -73,6 +73,9 @@ auth:
   reset_token_ttl_minutes: 30
   email_verify_token_ttl_hours: 24
   file_url_ttl_seconds: 300
+  registration_invite_code: ""
+  captcha_threshold: 3
+  captcha_ttl_seconds: 120
   bootstrap_admin_username: admin
   bootstrap_admin_password: ""
 

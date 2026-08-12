@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 
-import { api } from '@/client/services/client'
+import { api, ApiError, type CaptchaChallenge } from '@/client/services/client'
 import { useAuthStore, type AuthUser } from '@/application/state/authStore'
 import { Button } from '@/ui/widgets/ui/button'
 import { Input } from '@/ui/widgets/ui/input'
@@ -25,6 +25,9 @@ export default function Login() {
   const [displayName, setDisplayName] = useState('')
   const [email, setEmail] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [inviteCode, setInviteCode] = useState('')
+  const [captcha, setCaptcha] = useState<CaptchaChallenge | null>(null)
+  const [captchaAnswer, setCaptchaAnswer] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
   const resetToken = searchParams.get('reset_token')
@@ -36,6 +39,8 @@ export default function Login() {
     staleTime: 60_000,
   })
   const allowRegistration = !!reg?.allow_registration
+  const requireInviteCode = !!reg?.require_invite_code
+  const requireCaptcha = !!reg?.require_captcha
 
   useEffect(() => {
     if (resetToken) setMode('reset')
@@ -44,6 +49,25 @@ export default function Login() {
   useEffect(() => {
     if (!allowRegistration && mode === 'register') setMode('login')
   }, [allowRegistration, mode])
+
+  useEffect(() => {
+    if (mode === 'register' && requireCaptcha) {
+      let cancelled = false
+      api
+        .getCaptcha()
+        .then((ch) => {
+          if (!cancelled) {
+            setCaptcha(ch)
+            setCaptchaAnswer('')
+          }
+        })
+        .catch(() => {})
+      return () => {
+        cancelled = true
+      }
+    }
+    return undefined
+  }, [mode, requireCaptcha])
 
   useEffect(() => {
     if (!verifyToken) return
@@ -88,17 +112,36 @@ export default function Login() {
         toast.error('两次输入的密码不一致')
         return
       }
+      if (requireInviteCode && !inviteCode.trim()) {
+        toast.error('请输入邀请码')
+        return
+      }
+      if (requireCaptcha && (!captcha || !captchaAnswer.trim())) {
+        toast.error('请完成人机验证')
+        return
+      }
     }
     setSubmitting(true)
     try {
       const resp =
         mode === 'login'
-          ? await api.login(username.trim(), password)
+          ? await api.login(
+              username.trim(),
+              password,
+              captcha && captchaAnswer.trim()
+                ? { id: captcha.id, answer: captchaAnswer.trim() }
+                : undefined,
+            )
           : await api.register({
               username: username.trim(),
               password,
               email: email.trim() || undefined,
               display_name: displayName.trim() || undefined,
+              invite_code: requireInviteCode ? inviteCode.trim() : undefined,
+              captcha:
+                requireCaptcha && captcha
+                  ? { id: captcha.id, answer: captchaAnswer.trim() }
+                  : undefined,
             })
       setAuth(resp.access_token, resp.user as AuthUser)
       toast.success(mode === 'login' ? '登录成功' : '注册成功，已自动登录')
@@ -109,6 +152,10 @@ export default function Login() {
         : from
       nav(target, { replace: true })
     } catch (err) {
+      if (err instanceof ApiError && err.challenge) {
+        setCaptcha(err.challenge)
+        setCaptchaAnswer('')
+      }
       toast.error(err instanceof Error ? err.message : '操作失败')
     } finally {
       setSubmitting(false)
@@ -253,6 +300,18 @@ export default function Login() {
             </div>
           )}
 
+          {mode === 'register' && requireInviteCode && (
+            <div className="space-y-1.5">
+              <Label htmlFor="invite_code">邀请码</Label>
+              <Input
+                id="invite_code"
+                value={inviteCode}
+                onChange={(e) => setInviteCode(e.target.value)}
+                placeholder="请输入邀请码"
+              />
+            </div>
+          )}
+
           {(mode === 'login' || mode === 'register' || mode === 'reset') && (
             <div className="space-y-1.5">
               <Label htmlFor="password">
@@ -285,6 +344,20 @@ export default function Login() {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="再次输入密码"
+              />
+            </div>
+          )}
+
+          {(mode === 'register' ? requireCaptcha : mode === 'login' && !!captcha) && captcha && (
+            <div className="space-y-1.5 rounded-lg border border-border bg-muted/40 p-3">
+              <Label htmlFor="captcha_answer">人机验证：{captcha.question}</Label>
+              <Input
+                id="captcha_answer"
+                inputMode="numeric"
+                autoComplete="off"
+                value={captchaAnswer}
+                onChange={(e) => setCaptchaAnswer(e.target.value)}
+                placeholder="输入计算结果"
               />
             </div>
           )}

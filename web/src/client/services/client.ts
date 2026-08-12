@@ -46,13 +46,26 @@ function formatValidationItem(item: ValidationDetailItem): string {
   return `${label}格式不正确`
 }
 
+export interface CaptchaChallenge {
+  id: string
+  question: string
+  expires_in: number
+}
+
+export interface CaptchaAnswer {
+  id: string
+  answer: string
+}
+
 export class ApiError extends Error {
 
   status?: number
-  constructor(message: string, status?: number) {
+  challenge?: CaptchaChallenge
+  constructor(message: string, status?: number, challenge?: CaptchaChallenge) {
     super(message)
     this.name = 'ApiError'
     this.status = status
+    this.challenge = challenge
   }
 }
 
@@ -111,13 +124,17 @@ http.interceptors.response.use(
       err.response?.data && typeof err.response.data === 'object'
         ? (err.response.data as { detail?: unknown }).detail
         : undefined
+    const challenge =
+      err.response?.data && typeof err.response.data === 'object'
+        ? (err.response.data as { challenge?: CaptchaChallenge }).challenge
+        : undefined
     const accountDisabled =
       status === 403 && typeof detail === 'string' && detail.includes('禁用')
     if ((status === 401 && !isAuthEndpoint) || accountDisabled) {
       forceLogout()
     }
 
-    return Promise.reject(new ApiError(formatApiError(err), status))
+    return Promise.reject(new ApiError(formatApiError(err), status, challenge))
   },
 )
 
@@ -134,6 +151,28 @@ export interface Project {
   visibility?: string
   created_at: string
   updated_at: string
+}
+
+export interface AdminProject {
+  id: string
+  name: string
+  description: string
+  workspace_path: string
+  owner_id?: string | null
+  owner_username: string
+  owner_display_name: string
+  status: 'active' | 'paused' | 'frozen'
+  running: boolean
+  running_sessions: number
+  visibility: string
+  created_at?: string | null
+  updated_at?: string | null
+}
+
+export interface AdminProjectStatusResp {
+  project_id: string
+  status: 'active' | 'paused' | 'frozen'
+  cancelled_runs: number
 }
 
 export interface AuthUser {
@@ -663,15 +702,17 @@ export const api = {
   systemMetrics: () =>
     http.get<SystemMetrics>('/admin/metrics').then((r) => r.data),
 
-  login: (username: string, password: string) =>
+  login: (username: string, password: string, captcha?: CaptchaAnswer) =>
     http
-      .post<TokenResp>('/auth/login', { username, password })
+      .post<TokenResp>('/auth/login', { username, password, captcha })
       .then((r) => r.data),
   register: (payload: {
     username: string
     password: string
     email?: string
     display_name?: string
+    invite_code?: string
+    captcha?: CaptchaAnswer
   }) => http.post<TokenResp>('/auth/register', payload).then((r) => r.data),
   me: () => http.get<AuthUser>('/auth/me').then((r) => r.data),
   changePassword: (currentPassword: string, newPassword: string) =>
@@ -696,14 +737,24 @@ export const api = {
       .then((r) => r.data),
   sendVerificationEmail: () =>
     http.post<{ ok: boolean }>('/auth/send-verification').then((r) => r.data),
+  getCaptcha: () =>
+    http.get<CaptchaChallenge>('/auth/captcha').then((r) => r.data),
 
   getRegistrationStatus: () =>
     http
-      .get<{ allow_registration: boolean }>('/auth/registration')
+      .get<{
+        allow_registration: boolean
+        require_invite_code: boolean
+        require_captcha: boolean
+      }>('/auth/registration')
       .then((r) => r.data),
   getRegistrationSetting: () =>
     http
-      .get<{ allow_registration: boolean }>('/settings/registration')
+      .get<{
+        allow_registration: boolean
+        require_invite_code: boolean
+        require_captcha: boolean
+      }>('/settings/registration')
       .then((r) => r.data),
   setRegistrationSetting: (allow: boolean) =>
     http
@@ -913,6 +964,54 @@ export const api = {
         payload,
       )
       .then((r) => r.data),
+
+  adminListProjects: (params?: {
+    q?: string
+    owner?: string
+    date_from?: string
+    date_to?: string
+    running?: boolean
+    status?: '' | 'active' | 'paused' | 'frozen'
+    limit?: number
+    offset?: number
+  }) =>
+    http
+      .get<{
+        total: number
+        limit: number
+        offset: number
+        items: AdminProject[]
+      }>('/admin/projects', {
+        params: {
+          q: params?.q || undefined,
+          owner: params?.owner || undefined,
+          date_from: params?.date_from || undefined,
+          date_to: params?.date_to || undefined,
+          running: params?.running,
+          status: params?.status || undefined,
+          limit: params?.limit ?? undefined,
+          offset: params?.offset ?? undefined,
+        },
+      })
+      .then((r) => r.data),
+  adminPauseProject: (id: string) =>
+    http
+      .post<AdminProjectStatusResp>(`/admin/projects/${id}/pause`)
+      .then((r) => r.data),
+  adminResumeProject: (id: string) =>
+    http
+      .post<AdminProjectStatusResp>(`/admin/projects/${id}/resume`)
+      .then((r) => r.data),
+  adminFreezeProject: (id: string) =>
+    http
+      .post<AdminProjectStatusResp>(`/admin/projects/${id}/freeze`)
+      .then((r) => r.data),
+  adminUnfreezeProject: (id: string) =>
+    http
+      .post<AdminProjectStatusResp>(`/admin/projects/${id}/unfreeze`)
+      .then((r) => r.data),
+  adminDeleteProject: (id: string) =>
+    http.delete<void>(`/admin/projects/${id}`).then((r) => r.data),
 
   browseMarket: () =>
     http.get<{ total: number; items: MarketItem[] }>('/market').then((r) => r.data),
