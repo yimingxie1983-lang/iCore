@@ -136,6 +136,28 @@ export interface Project {
   updated_at: string
 }
 
+export interface AdminProject {
+  id: string
+  name: string
+  description: string
+  workspace_path: string
+  owner_id?: string | null
+  owner_username: string
+  owner_display_name: string
+  status: 'active' | 'paused' | 'frozen'
+  running: boolean
+  running_sessions: number
+  visibility: string
+  created_at?: string | null
+  updated_at?: string | null
+}
+
+export interface AdminProjectStatusResp {
+  project_id: string
+  status: 'active' | 'paused' | 'frozen'
+  cancelled_runs: number
+}
+
 export interface AuthUser {
   id: string
   username: string
@@ -913,6 +935,54 @@ export const api = {
         payload,
       )
       .then((r) => r.data),
+
+  adminListProjects: (params?: {
+    q?: string
+    owner?: string
+    date_from?: string
+    date_to?: string
+    running?: boolean
+    status?: '' | 'active' | 'paused' | 'frozen'
+    limit?: number
+    offset?: number
+  }) =>
+    http
+      .get<{
+        total: number
+        limit: number
+        offset: number
+        items: AdminProject[]
+      }>('/admin/projects', {
+        params: {
+          q: params?.q || undefined,
+          owner: params?.owner || undefined,
+          date_from: params?.date_from || undefined,
+          date_to: params?.date_to || undefined,
+          running: params?.running,
+          status: params?.status || undefined,
+          limit: params?.limit ?? undefined,
+          offset: params?.offset ?? undefined,
+        },
+      })
+      .then((r) => r.data),
+  adminPauseProject: (id: string) =>
+    http
+      .post<AdminProjectStatusResp>(`/admin/projects/${id}/pause`)
+      .then((r) => r.data),
+  adminResumeProject: (id: string) =>
+    http
+      .post<AdminProjectStatusResp>(`/admin/projects/${id}/resume`)
+      .then((r) => r.data),
+  adminFreezeProject: (id: string) =>
+    http
+      .post<AdminProjectStatusResp>(`/admin/projects/${id}/freeze`)
+      .then((r) => r.data),
+  adminUnfreezeProject: (id: string) =>
+    http
+      .post<AdminProjectStatusResp>(`/admin/projects/${id}/unfreeze`)
+      .then((r) => r.data),
+  adminDeleteProject: (id: string) =>
+    http.delete<void>(`/admin/projects/${id}`).then((r) => r.data),
 
   browseMarket: () =>
     http.get<{ total: number; items: MarketItem[] }>('/market').then((r) => r.data),
