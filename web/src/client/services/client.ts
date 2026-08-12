@@ -203,6 +203,15 @@ export interface AuthEventItem {
   created_at?: string | null
 }
 
+export interface AuthEventFilters {
+  username?: string
+  event_type?: string
+  ip?: string
+  detail?: string
+  start?: string
+  end?: string
+}
+
 export interface SignedFileUrl {
   url: string
   expires_at: number
@@ -784,9 +793,13 @@ export const api = {
   ) => http.patch<AuthUser>(`/users/${userId}`, payload).then((r) => r.data),
   deleteUser: (userId: string) =>
     http.delete<void>(`/users/${userId}`).then((r) => r.data),
-  listAuthEvents: (params?: { limit?: number; offset?: number }) =>
+  listAuthEvents: (params?: { limit?: number; offset?: number } & AuthEventFilters) =>
     http
       .get<{ total: number; items: AuthEventItem[] }>('/admin/auth-events', { params })
+      .then((r) => r.data),
+  exportAuthEvents: (params?: AuthEventFilters) =>
+    http
+      .get<Blob>('/admin/auth-events/export', { params, responseType: 'blob' })
       .then((r) => r.data),
 
   myCredits: () => http.get<CreditBalance>('/me/credits').then((r) => r.data),

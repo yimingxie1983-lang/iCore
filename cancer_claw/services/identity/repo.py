@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import re
 import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from cancer_claw.services.identity.security import hash_password
 from cancer_claw.db import get_db, get_read_db
+from cancer_claw.services.identity.security import hash_password
 
 ROLE_ADMIN = "admin"
 ROLE_USER = "user"
@@ -281,18 +282,85 @@ async def record_auth_event(
     )
     await db.commit()
 
+
+_DATE_ONLY_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+def _like_pattern(q: str) -> str:
+    escaped = q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    return f"%{escaped}%"
+
+
+def _normalize_start(v: str) -> str:
+    return f"{v}T00:00:00" if _DATE_ONLY_RE.match(v) else v
+
+
+def _normalize_end(v: str) -> str:
+    return f"{v}T23:59:59.999999" if _DATE_ONLY_RE.match(v) else v
+
+
+def _auth_events_where(
+    username: str = "",
+    event_type: str = "",
+    ip: str = "",
+    detail: str = "",
+    start: str = "",
+    end: str = "",
+) -> tuple[str, list[Any]]:
+    clauses: list[str] = []
+    params: list[Any] = []
+    if username:
+        clauses.append("username LIKE ? ESCAPE '\\'")
+        params.append(_like_pattern(username))
+    if event_type:
+        clauses.append("event_type = ?")
+        params.append(event_type)
+    if ip:
+        clauses.append("ip LIKE ? ESCAPE '\\'")
+        params.append(_like_pattern(ip))
+    if detail:
+        clauses.append("detail LIKE ? ESCAPE '\\'")
+        params.append(_like_pattern(detail))
+    if start:
+        clauses.append("created_at >= ?")
+        params.append(_normalize_start(start))
+    if end:
+        clauses.append("created_at <= ?")
+        params.append(_normalize_end(end))
+    where = f" WHERE {' AND '.join(clauses)}" if clauses else ""
+    return where, params
+
+
 async def list_auth_events(
-    limit: int = 50, offset: int = 0
+    limit: int | None = 50,
+    offset: int = 0,
+    username: str = "",
+    event_type: str = "",
+    ip: str = "",
+    detail: str = "",
+    start: str = "",
+    end: str = "",
 ) -> tuple[int, list[dict[str, Any]]]:
 
     db = await get_db()
-    cur = await db.execute("SELECT COUNT(*) FROM auth_events")
-    total = int((await cur.fetchone())[0])
-    cur = await db.execute(
-        """SELECT id, user_id, username, event_type, ip, detail, created_at
-           FROM auth_events ORDER BY id DESC LIMIT ? OFFSET ?""",
-        (limit, offset),
+    where, params = _auth_events_where(
+        username=username,
+        event_type=event_type,
+        ip=ip,
+        detail=detail,
+        start=start,
+        end=end,
     )
+    cur = await db.execute(f"SELECT COUNT(*) FROM auth_events{where}", params)
+    total = int((await cur.fetchone())[0])
+    sql = (
+        "SELECT id, user_id, username, event_type, ip, detail, created_at"
+        f" FROM auth_events{where} ORDER BY id DESC"
+    )
+    if limit is not None:
+        sql += " LIMIT ? OFFSET ?"
+        params = [*params, limit, offset]
+    cur = await db.execute(sql, params)
     rows = await cur.fetchall()
     items = [
         {

@@ -1,5 +1,7 @@
 import re
 
+from cancer_claw.services.identity import repo
+
 
 def _solve_challenge(challenge):
     m = re.match(r"(\d+)\s*\+\s*(\d+) = \?", challenge["question"])
@@ -213,6 +215,56 @@ async def test_audit_events_recorded_and_admin_listed(client):
     body = resp.json()
     events = {e["event_type"] for e in body["items"]}
     assert {"register", "login_success", "login_failed"} <= events
+
+
+async def test_admin_auth_events_filter_and_export(client):
+    admin = await _register(client, username="audit_admin")
+    token = admin["access_token"]
+    await _register(client, username="audit_user")
+    await repo.record_auth_event(None, "audit_user", "login_failed", "10.1.2.3", "wrong password")
+
+    resp = await client.get(
+        "/api/admin/auth-events",
+        params={"event_type": "register", "username": "audit_user"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["total"] == 1
+    assert body["items"][0]["username"] == "audit_user"
+
+    resp = await client.get(
+        "/api/admin/auth-events",
+        params={"ip": "10.1.2.3"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["total"] == 1
+
+    resp = await client.get(
+        "/api/admin/auth-events/export",
+        params={"event_type": "register", "username": "audit_user"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("text/csv")
+    text = resp.content.decode("utf-8-sig")
+    lines = text.splitlines()
+    assert lines[0].startswith("created_at")
+    assert "audit_user" in text
+    assert "login_failed" not in text
+
+    resp = await client.get(
+        "/api/admin/auth-events/export",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 200
+    text = resp.content.decode("utf-8-sig")
+    assert "audit_user" in text
+    assert "register" in text
+
+    resp = await client.get("/api/admin/auth-events/export")
+    assert resp.status_code == 401
 
 
 async def test_disabled_user_gets_403_and_me_rejects(client):

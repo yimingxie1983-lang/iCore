@@ -631,7 +631,72 @@ async def delete_user(
 async def list_auth_events(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
+    username: str = Query("", max_length=80),
+    event_type: str = Query("", max_length=40),
+    ip: str = Query("", max_length=64),
+    detail: str = Query("", max_length=200),
+    start: str = Query("", max_length=32),
+    end: str = Query("", max_length=32),
     _admin: dict[str, Any] = Depends(require_admin),
 ) -> AuthEventListResp:
-    total, items = await repo.list_auth_events(limit=limit, offset=offset)
+    total, items = await repo.list_auth_events(
+        limit=limit,
+        offset=offset,
+        username=username,
+        event_type=event_type,
+        ip=ip,
+        detail=detail,
+        start=start,
+        end=end,
+    )
     return AuthEventListResp(total=total, items=items)
+
+
+def _csv_field(value: str | None) -> str:
+    s = "" if value is None else str(value)
+    if any(c in s for c in ',"\n\r'):
+        return '"' + s.replace('"', '""') + '"'
+    return s
+
+
+@router.get("/admin/auth-events/export")
+async def export_auth_events(
+    username: str = Query("", max_length=80),
+    event_type: str = Query("", max_length=40),
+    ip: str = Query("", max_length=64),
+    detail: str = Query("", max_length=200),
+    start: str = Query("", max_length=32),
+    end: str = Query("", max_length=32),
+    _admin: dict[str, Any] = Depends(require_admin),
+) -> Response:
+    _total, items = await repo.list_auth_events(
+        limit=None,
+        offset=0,
+        username=username,
+        event_type=event_type,
+        ip=ip,
+        detail=detail,
+        start=start,
+        end=end,
+    )
+    lines = ["created_at,username,event_type,ip,detail"]
+    for e in items:
+        lines.append(
+            ",".join(
+                _csv_field(v)
+                for v in (
+                    e["created_at"],
+                    e["username"],
+                    e["event_type"],
+                    e["ip"],
+                    e["detail"],
+                )
+            )
+        )
+    content = ("\ufeff" + "\n".join(lines) + "\n").encode("utf-8")
+    filename = f"auth-events-{_now().strftime('%Y%m%d-%H%M%S')}.csv"
+    return Response(
+        content=content,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

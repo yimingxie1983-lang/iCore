@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
 from cancer_claw.config import settings
-from cancer_claw.db import close_db, init_db
+from cancer_claw.db import close_db, get_db, init_db
 from cancer_claw.services.identity import repo
 from cancer_claw.services.identity.security import hash_token, verify_password
 
@@ -74,3 +74,57 @@ async def test_auth_events_recorded_and_listed(tmp_path):
         assert total == 2
         assert items[0]["event_type"] == "login_failed"
         assert {e["event_type"] for e in items} == {"login_success", "login_failed"}
+
+
+async def test_auth_events_filtered_by_fields(tmp_path):
+    async for _ in _isolated_db(tmp_path):
+        db = await get_db()
+        now = datetime.now(timezone.utc)
+        for uid, name, event_type, ip, detail, ts in [
+            ("u1", "alice", "login_success", "10.0.0.1", "ok", now - timedelta(days=2)),
+            ("u2", "bob", "login_failed", "10.0.0.2", "bad password", now - timedelta(days=1)),
+            ("u3", "carol", "register", "192.168.1.1", "new user", now),
+        ]:
+            await db.execute(
+                "INSERT INTO auth_events (user_id, username, event_type, ip, detail, created_at)"
+                " VALUES (?, ?, ?, ?, ?, ?)",
+                (uid, name, event_type, ip, detail, ts.isoformat()),
+            )
+        await db.commit()
+
+        total, items = await repo.list_auth_events(username="bob")
+        assert total == 1
+        assert items[0]["event_type"] == "login_failed"
+
+        total, items = await repo.list_auth_events(event_type="register")
+        assert total == 1
+        assert items[0]["username"] == "carol"
+
+        total, items = await repo.list_auth_events(ip="10.0.0")
+        assert total == 2
+
+        total, items = await repo.list_auth_events(detail="bad")
+        assert total == 1
+        assert items[0]["username"] == "bob"
+
+        total, items = await repo.list_auth_events(start=now.isoformat())
+        assert total == 1
+        assert items[0]["username"] == "carol"
+
+        total, items = await repo.list_auth_events(end=now.isoformat())
+        assert total == 3
+
+        day = (now - timedelta(days=1)).date().isoformat()
+        total, items = await repo.list_auth_events(start=day, end=day)
+        assert total == 1
+        assert items[0]["username"] == "bob"
+
+        total, items = await repo.list_auth_events(
+            username="a", event_type="login_success", limit=10, offset=0
+        )
+        assert total == 1
+        assert items[0]["username"] == "alice"
+
+        total, items = await repo.list_auth_events(limit=None)
+        assert total == 3
+        assert len(items) == 3
