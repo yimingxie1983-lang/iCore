@@ -1,11 +1,24 @@
+import re
+
+
+def _solve_challenge(challenge):
+    m = re.match(r"(\d+)\s*\+\s*(\d+) = \?", challenge["question"])
+    assert m, challenge["question"]
+    return str(int(m.group(1)) + int(m.group(2)))
+
+
 async def _register(client, username="alice", password="StrongPass1!"):
+    resp = await client.get("/api/auth/captcha")
+    assert resp.status_code == 200, resp.text
+    challenge = resp.json()
     resp = await client.post(
         "/api/auth/register",
         json={
             "username": username,
             "password": password,
-            "email": "",
+            "email": f"{username}@example.com",
             "display_name": username,
+            "captcha": {"id": challenge["id"], "answer": _solve_challenge(challenge)},
         },
     )
     assert resp.status_code == 201, resp.text
