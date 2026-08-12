@@ -15,6 +15,7 @@ from cancer_claw.services.identity.deps import (
     get_current_user,
     is_admin,
     require_project_read,
+    require_project_runnable,
     require_project_write,
 )
 from cancer_claw.services.identity import settings_repo
@@ -521,7 +522,7 @@ async def _resolve_session_for_chat(
 async def chat_stream(
     project_id: str,
     body: ChatRequest,
-    ctx: dict = Depends(require_project_write),
+    ctx: dict = Depends(require_project_runnable),
 ):
 
 
@@ -793,6 +794,8 @@ async def chat_sync(
             raise HTTPException(status_code=404, detail=f"项目 {project_id} 不存在")
         if role == "viewer":
             raise HTTPException(status_code=403, detail="只读成员无写入权限")
+        if (_project.get("status") or "active") in ("paused", "frozen"):
+            raise HTTPException(status_code=403, detail="项目已暂停或冻结，无法发起新的运行")
         agent = await _get_or_create_agent(project_id, body.agent_id)
     else:
 

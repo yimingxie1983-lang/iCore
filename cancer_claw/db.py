@@ -315,6 +315,9 @@ _PG_ADD_COLUMNS = [
     ("projects", "owner_id", "TEXT"),
     ("projects", "visibility", "TEXT DEFAULT 'private'"),
     ("projects", "market_default_role", "TEXT DEFAULT 'viewer'"),
+    ("projects", "status", "TEXT NOT NULL DEFAULT 'active'"),
+    ("projects", "status_changed_at", "TIMESTAMP"),
+    ("projects", "status_changed_by", "TEXT"),
     ("users", "credits_balance", "INTEGER NOT NULL DEFAULT 0"),
     ("users", "token_version", "INTEGER NOT NULL DEFAULT 0"),
     ("users", "email_verified", "INTEGER NOT NULL DEFAULT 0"),
@@ -389,6 +392,9 @@ _TABLE_SCHEMAS = [
         description TEXT DEFAULT '',
         workspace_path TEXT NOT NULL,
         owner_id TEXT,
+        status TEXT NOT NULL DEFAULT 'active',
+        status_changed_at TIMESTAMP,
+        status_changed_by TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
@@ -904,6 +910,7 @@ _INDEX_SCHEMAS = [
     "CREATE INDEX IF NOT EXISTS idx_user_roles_role ON user_roles(role_id)",
 
     "CREATE INDEX IF NOT EXISTS idx_projects_visibility ON projects(visibility, updated_at DESC)",
+    "CREATE INDEX IF NOT EXISTS idx_projects_status ON projects(status)",
     "CREATE INDEX IF NOT EXISTS idx_access_requests_project ON project_access_requests(project_id, status)",
     "CREATE INDEX IF NOT EXISTS idx_access_requests_requester ON project_access_requests(requester_id, status)",
 
@@ -976,6 +983,15 @@ async def _create_tables(db: aiosqlite.Connection):
     )
     await _migrate_add_column_if_missing(
         db, "projects", "market_default_role", "TEXT DEFAULT 'viewer'"
+    )
+    await _migrate_add_column_if_missing(
+        db, "projects", "status", "TEXT NOT NULL DEFAULT 'active'"
+    )
+    await _migrate_add_column_if_missing(
+        db, "projects", "status_changed_at", "TIMESTAMP"
+    )
+    await _migrate_add_column_if_missing(
+        db, "projects", "status_changed_by", "TEXT"
     )
 
 

@@ -255,6 +255,7 @@ async def _count_requests(request, call_next):
     return resp
 
 from cancer_claw.interfaces.routes.projects import router as projects_router
+from cancer_claw.interfaces.routes.admin_projects import router as admin_projects_router
 from cancer_claw.interfaces.routes.providers import router as providers_router
 from cancer_claw.interfaces.routes.agents import router as agents_router
 from cancer_claw.interfaces.routes.chat import router as chat_router
@@ -281,6 +282,7 @@ app.include_router(roles_router, prefix="/api", tags=["角色 / 权限"])
 
 app.include_router(market_router, prefix="/api", tags=["共享市场"])
 app.include_router(projects_router, prefix="/api", tags=["项目管理"])
+app.include_router(admin_projects_router, prefix="/api", tags=["项目管理 / 管理员"])
 app.include_router(providers_router, prefix="/api", tags=["模型供应商"])
 app.include_router(
     agents_router, prefix="/api", tags=["智能体管理"], dependencies=_login_dep

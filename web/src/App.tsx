@@ -18,6 +18,7 @@ import AdminRoles from './ui/views/admin/Roles'
 import AdminEvolution from './ui/views/admin/Evolution'
 import AdminMonitor from './ui/views/admin/Monitor'
 import AdminAuthEvents from './ui/views/admin/AuthEvents'
+import AdminProjects from './ui/views/admin/Projects'
 import Market from './ui/views/Market'
 import { api, type AuthUser } from './client/services/client'
 import {
@@ -146,6 +147,14 @@ function App() {
           element={
             <RequireAdmin>
               <AdminMonitor />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/admin/projects"
+          element={
+            <RequireAdmin>
+              <AdminProjects />
             </RequireAdmin>
           }
         />
