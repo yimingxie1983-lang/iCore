@@ -1,13 +1,31 @@
 import hashlib
 import hmac
+import re
 import time
 
 
+def _solve_challenge(challenge):
+    m = re.match(r"(\d+)\s*\+\s*(\d+) = \?", challenge["question"])
+    assert m, challenge["question"]
+    return str(int(m.group(1)) + int(m.group(2)))
+
+
 async def _register_and_project(client):
+    resp = await client.get("/api/auth/captcha")
+    assert resp.status_code == 200
+    challenge = resp.json()
     resp = await client.post(
         "/api/auth/register",
-        json={"username": "fileuser", "password": "StrongPass1!"},
+        json={
+            "username": "fileuser",
+            "password": "StrongPass1!",
+            "captcha": {
+                "id": challenge["id"],
+                "answer": _solve_challenge(challenge),
+            },
+        },
     )
+    assert resp.status_code == 201, resp.text
     token = resp.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
     resp = await client.post(

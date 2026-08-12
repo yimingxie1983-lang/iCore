@@ -1,15 +1,33 @@
 import re
 
 
+def _solve_challenge(challenge):
+    m = re.match(r"(\d+)\s*\+\s*(\d+) = \?", challenge["question"])
+    assert m, challenge["question"]
+    return str(int(m.group(1)) + int(m.group(2)))
+
+
+async def _get_captcha(client):
+    resp = await client.get("/api/auth/captcha")
+    assert resp.status_code == 200, resp.text
+    return resp.json()
+
+
 async def _register(client, username="alice", password="StrongPass1!", email=""):
+    payload = {
+        "username": username,
+        "password": password,
+        "email": email,
+        "display_name": username,
+    }
+    challenge = await _get_captcha(client)
+    payload["captcha"] = {
+        "id": challenge["id"],
+        "answer": _solve_challenge(challenge),
+    }
     resp = await client.post(
         "/api/auth/register",
-        json={
-            "username": username,
-            "password": password,
-            "email": email,
-            "display_name": username,
-        },
+        json=payload,
     )
     assert resp.status_code == 201, resp.text
     return resp.json()
@@ -204,3 +222,174 @@ async def test_disabled_user_gets_403_and_me_rejects(client):
         "/api/auth/me", headers={"Authorization": f"Bearer {data['access_token']}"}
     )
     assert resp.status_code == 403
+
+
+async def test_login_requires_captcha_after_failures(client):
+    await _register(client, username="brute")
+    for _ in range(3):
+        resp = await client.post(
+            "/api/auth/login",
+            json={"username": "brute", "password": "WrongPass1!"},
+        )
+        assert resp.status_code == 401
+
+    resp = await client.post(
+        "/api/auth/login",
+        json={"username": "brute", "password": "WrongPass1!"},
+    )
+    assert resp.status_code == 428
+    challenge = resp.json()["challenge"]
+
+    resp = await client.post(
+        "/api/auth/login",
+        json={"username": "brute", "password": "StrongPass1!"},
+    )
+    assert resp.status_code == 428
+
+    resp = await client.post(
+        "/api/auth/login",
+        json={
+            "username": "brute",
+            "password": "StrongPass1!",
+            "captcha": {"id": challenge["id"], "answer": _solve_challenge(challenge)},
+        },
+    )
+    assert resp.status_code == 200
+
+
+async def test_login_wrong_captcha_rejected(client):
+    await _register(client, username="captcha_user")
+    for _ in range(3):
+        await client.post(
+            "/api/auth/login",
+            json={"username": "captcha_user", "password": "WrongPass1!"},
+        )
+    resp = await client.post(
+        "/api/auth/login",
+        json={"username": "captcha_user", "password": "WrongPass1!"},
+    )
+    assert resp.status_code == 428
+    challenge = resp.json()["challenge"]
+
+    resp = await client.post(
+        "/api/auth/login",
+        json={
+            "username": "captcha_user",
+            "password": "WrongPass1!",
+            "captcha": {"id": challenge["id"], "answer": "999"},
+        },
+    )
+    assert resp.status_code == 428
+
+
+async def test_register_requires_captcha_when_no_invite(client):
+    resp = await client.post(
+        "/api/auth/register", json={"username": "nocap", "password": "StrongPass1!"}
+    )
+    assert resp.status_code == 428
+    challenge = resp.json()["challenge"]
+
+    resp = await client.post(
+        "/api/auth/register",
+        json={
+            "username": "nocap",
+            "password": "StrongPass1!",
+            "captcha": {"id": challenge["id"], "answer": _solve_challenge(challenge)},
+        },
+    )
+    assert resp.status_code == 201
+
+
+async def test_register_invite_code_flow(client, monkeypatch):
+    from cancer_claw.config import settings
+
+    settings.auth.registration_invite_code = "TEST-INVITE-123"
+    try:
+        resp = await client.post(
+            "/api/auth/register",
+            json={
+                "username": "invite1",
+                "password": "StrongPass1!",
+                "captcha": {"id": "x" * 8, "answer": "1"},
+            },
+        )
+        assert resp.status_code == 400
+
+        resp = await client.post(
+            "/api/auth/register",
+            json={
+                "username": "invite1",
+                "password": "StrongPass1!",
+                "invite_code": "WRONG",
+            },
+        )
+        assert resp.status_code == 400
+
+        resp = await client.post(
+            "/api/auth/register",
+            json={
+                "username": "invite1",
+                "password": "StrongPass1!",
+                "invite_code": "TEST-INVITE-123",
+            },
+        )
+        assert resp.status_code == 201
+    finally:
+        settings.auth.registration_invite_code = ""
+
+
+async def test_register_rate_limited_per_ip(client):
+    from cancer_claw.config import settings
+
+    settings.auth.registration_invite_code = "TEST-INVITE-123"
+    try:
+        for i in range(5):
+            resp = await client.post(
+                "/api/auth/register",
+                json={
+                    "username": f"user{i}",
+                    "password": "StrongPass1!",
+                    "invite_code": "TEST-INVITE-123",
+                },
+            )
+            assert resp.status_code == 201, resp.text
+        resp = await client.post(
+            "/api/auth/register",
+            json={
+                "username": "user6",
+                "password": "StrongPass1!",
+                "invite_code": "TEST-INVITE-123",
+            },
+        )
+        assert resp.status_code == 429
+    finally:
+        settings.auth.registration_invite_code = ""
+
+
+async def test_register_rejects_invalid_email(client):
+    resp = await client.post(
+        "/api/auth/register",
+        json={
+            "username": "badmail",
+            "password": "StrongPass1!",
+            "email": "not-an-email",
+        },
+    )
+    assert resp.status_code == 400
+
+
+async def test_registration_status_flags(client):
+    from cancer_claw.config import settings
+
+    body = (await client.get("/api/auth/registration")).json()
+    assert body["allow_registration"] is True
+    assert body["require_captcha"] is True
+    assert body["require_invite_code"] is False
+
+    settings.auth.registration_invite_code = "X"
+    try:
+        body = (await client.get("/api/auth/registration")).json()
+        assert body["require_invite_code"] is True
+        assert body["require_captcha"] is False
+    finally:
+        settings.auth.registration_invite_code = ""

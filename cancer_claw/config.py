@@ -184,6 +184,9 @@ class AuthConfig(BaseModel):
     reset_token_ttl_minutes: int = 30
     email_verify_token_ttl_hours: int = 24
     file_url_ttl_seconds: int = 300
+    registration_invite_code: str = ""
+    captcha_threshold: int = 3
+    captcha_ttl_seconds: int = 120
     bootstrap_admin_username: str = "admin"
     bootstrap_admin_password: str = ""
 
@@ -341,6 +344,24 @@ def _apply_env_overrides(settings: Settings) -> Settings:
         try:
             settings.auth.file_url_ttl_seconds = int(
                 os.environ["CANCER_CLAW_AUTH_FILE_URL_TTL_SECONDS"]
+            )
+        except ValueError:
+            pass
+    if os.environ.get("CANCER_CLAW_AUTH_REGISTRATION_INVITE_CODE"):
+        settings.auth.registration_invite_code = os.environ[
+            "CANCER_CLAW_AUTH_REGISTRATION_INVITE_CODE"
+        ]
+    if os.environ.get("CANCER_CLAW_AUTH_CAPTCHA_THRESHOLD"):
+        try:
+            settings.auth.captcha_threshold = int(
+                os.environ["CANCER_CLAW_AUTH_CAPTCHA_THRESHOLD"]
+            )
+        except ValueError:
+            pass
+    if os.environ.get("CANCER_CLAW_AUTH_CAPTCHA_TTL_SECONDS"):
+        try:
+            settings.auth.captcha_ttl_seconds = int(
+                os.environ["CANCER_CLAW_AUTH_CAPTCHA_TTL_SECONDS"]
             )
         except ValueError:
             pass

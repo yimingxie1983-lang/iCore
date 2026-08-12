@@ -87,7 +87,7 @@ cancer_claw = [
 asyncio_mode = "auto"
 testpaths = ["tests"]
 python_files = ["test_*.py"]
-addopts = "-p no:cacheprovider --basetemp=.pytest-tmp"
+addopts = "-p no:cacheprovider"
 
 [tool.ruff]
 line-length = 100

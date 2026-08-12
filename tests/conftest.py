@@ -2,6 +2,15 @@ import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
 
+def pytest_configure(config):
+    import os
+    from pathlib import Path
+
+    base = Path(".pytest-tmp") / f"run-{os.getpid()}"
+    base.mkdir(parents=True, exist_ok=True)
+    config.option.basetemp = str(base)
+
+
 @pytest_asyncio.fixture
 async def app(tmp_path):
     from cancer_claw.config import settings
@@ -15,6 +24,9 @@ async def app(tmp_path):
         "mail_from": settings.mail.from_addr,
         "mail_base": settings.mail.public_base_url,
         "projects": settings.paths.projects_dir,
+        "invite": settings.auth.registration_invite_code,
+        "captcha_threshold": settings.auth.captcha_threshold,
+        "captcha_ttl": settings.auth.captcha_ttl_seconds,
     }
     settings.database.path = str(tmp_path / "test.db")
     settings.auth.secret = "test-secret-0123456789abcdef0123456789abcdef"
@@ -23,6 +35,9 @@ async def app(tmp_path):
     settings.mail.from_addr = ""
     settings.mail.public_base_url = ""
     settings.paths.projects_dir = str(tmp_path / "workspaces")
+    settings.auth.registration_invite_code = ""
+    settings.auth.captcha_threshold = 3
+    settings.auth.captcha_ttl_seconds = 120
     await init_db()
 
     from cancer_claw.app import app as fastapi_app
@@ -38,6 +53,9 @@ async def app(tmp_path):
         settings.mail.from_addr = old["mail_from"]
         settings.mail.public_base_url = old["mail_base"]
         settings.paths.projects_dir = old["projects"]
+        settings.auth.registration_invite_code = old["invite"]
+        settings.auth.captcha_threshold = old["captcha_threshold"]
+        settings.auth.captcha_ttl_seconds = old["captcha_ttl"]
 
 
 @pytest_asyncio.fixture

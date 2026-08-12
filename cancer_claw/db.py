@@ -845,6 +845,17 @@ _TABLE_SCHEMAS = [
     )
     """,
 
+
+    """
+    CREATE TABLE IF NOT EXISTS login_attempts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        identity TEXT NOT NULL,
+        kind TEXT NOT NULL DEFAULT 'fail',
+        attempted_at TIMESTAMP NOT NULL,
+        locked_until TIMESTAMP
+    )
+    """,
+
 ]
 
 _INDEX_SCHEMAS = [
@@ -907,6 +918,9 @@ _INDEX_SCHEMAS = [
 
     "CREATE INDEX IF NOT EXISTS idx_auth_events_created ON auth_events(created_at DESC)",
     "CREATE INDEX IF NOT EXISTS idx_auth_events_user ON auth_events(user_id, created_at DESC)",
+
+    "CREATE INDEX IF NOT EXISTS idx_login_attempts_identity ON login_attempts(identity, attempted_at DESC)",
+    "CREATE INDEX IF NOT EXISTS idx_login_attempts_created ON login_attempts(attempted_at)",
 ]
 
 async def _create_tables(db: aiosqlite.Connection):

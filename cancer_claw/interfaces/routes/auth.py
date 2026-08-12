@@ -1,16 +1,21 @@
 from __future__ import annotations
 
+import hmac
+import re
+import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from cancer_claw.config import settings
 from cancer_claw.services.credits import repo as billing_repo
-from cancer_claw.services.identity import mail, repo
+from cancer_claw.services.identity import captcha, mail, repo
 from cancer_claw.services.identity import settings_repo
+from cancer_claw.services.identity import throttle
 from cancer_claw.services.identity.deps import (
     get_auth_secret,
     get_current_user,
@@ -19,11 +24,11 @@ from cancer_claw.services.identity.deps import (
 from cancer_claw.services.identity.security import (
     create_access_token,
     generate_token,
+    hash_password,
     hash_token,
     validate_password_strength,
     verify_password,
 )
-from cancer_claw.services.identity.throttle import login_throttle
 
 logger = structlog.get_logger()
 router = APIRouter()
@@ -45,16 +50,24 @@ class UserPublic(BaseModel):
     roles: list[dict] = Field(default_factory=list)
 
 
+class CaptchaAnswer(BaseModel):
+    id: str = Field(..., min_length=8, max_length=512)
+    answer: str = Field(..., min_length=1, max_length=16)
+
+
 class RegisterReq(BaseModel):
     username: str = Field(..., min_length=3, max_length=40)
     password: str = Field(..., min_length=6, max_length=128)
     email: str = Field("", max_length=120)
     display_name: str = Field("", max_length=60)
+    invite_code: str = Field("", max_length=64)
+    captcha: CaptchaAnswer | None = None
 
 
 class LoginReq(BaseModel):
     username: str = Field(..., min_length=1, max_length=40)
     password: str = Field(..., min_length=1, max_length=128)
+    captcha: CaptchaAnswer | None = None
 
 
 class TokenResp(BaseModel):
@@ -87,6 +100,8 @@ class UserListResp(BaseModel):
 
 class RegistrationStatusResp(BaseModel):
     allow_registration: bool = Field(..., description="当前是否开放自助注册")
+    require_invite_code: bool = False
+    require_captcha: bool = False
 
 
 class RegistrationToggleReq(BaseModel):
@@ -177,6 +192,42 @@ async def _audit(
         logger.warning("auth_audit_failed", event=event_type, error=str(e))
 
 
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+_DUMMY_HASH: str | None = None
+
+
+def _dummy_hash() -> str:
+
+    global _DUMMY_HASH
+    if _DUMMY_HASH is None:
+        _DUMMY_HASH = hash_password(secrets.token_urlsafe(16))
+    return _DUMMY_HASH
+
+
+def _captcha_response(detail: str) -> JSONResponse:
+
+    return JSONResponse(
+        status_code=428,
+        content={
+            "detail": detail,
+            "challenge": captcha.create_challenge(
+                ttl=settings.auth.captcha_ttl_seconds
+            ),
+        },
+    )
+
+
+async def _registration_status() -> RegistrationStatusResp:
+
+    invite = bool(settings.auth.registration_invite_code)
+    return RegistrationStatusResp(
+        allow_registration=await settings_repo.is_registration_open(),
+        require_invite_code=invite,
+        require_captcha=not invite,
+    )
+
+
 def _issue_token(user: dict[str, Any]) -> TokenResp:
     ttl = int(settings.auth.token_ttl_hours)
     token = create_access_token(
@@ -216,6 +267,16 @@ async def register(body: RegisterReq, request: Request) -> TokenResp:
     if not await settings_repo.is_registration_open():
         raise HTTPException(status_code=403, detail="本实例未开放自助注册，请联系管理员建号")
 
+    ip = _client_ip(request)
+    ip_ident = f"ip:{ip}"
+    if (
+        await throttle.count_attempts(
+            ip_ident, "register", window_seconds=throttle.REGISTER_WINDOW_SECONDS
+        )
+        >= throttle.REGISTER_MAX_PER_IP
+    ):
+        raise HTTPException(status_code=429, detail="注册过于频繁，请稍后再试")
+
     try:
         validate_password_strength(
             body.password,
@@ -224,6 +285,19 @@ async def register(body: RegisterReq, request: Request) -> TokenResp:
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+
+    if body.email and not _EMAIL_RE.fullmatch(body.email.strip()):
+        raise HTTPException(status_code=400, detail="邮箱格式不正确")
+
+    invite = settings.auth.registration_invite_code
+    if invite:
+        if not body.invite_code or not hmac.compare_digest(body.invite_code, invite):
+            raise HTTPException(status_code=400, detail="邀请码不正确")
+    else:
+        if not body.captcha or not captcha.verify_challenge(
+            body.captcha.id, body.captcha.answer
+        ):
+            return _captcha_response("需要人机验证，请完成算术题")
 
     existing = await repo.get_user_by_username(body.username)
     if existing:
@@ -250,6 +324,7 @@ async def register(body: RegisterReq, request: Request) -> TokenResp:
             logger.warning("verify_mail_send_failed", user_id=user["id"], error=str(e))
 
     await _audit(user["id"], user["username"], "register", _client_ip(request))
+    await throttle.record_attempt(ip_ident, "register")
     logger.info("user_registered", username=body.username, role=role)
     return _issue_token(user)
 
@@ -258,9 +333,21 @@ async def register(body: RegisterReq, request: Request) -> TokenResp:
 async def login(body: LoginReq, request: Request) -> TokenResp:
 
     ip = _client_ip(request)
-    identity = f"{body.username.lower()}|{ip}"
+    u_ident = f"u:{body.username.lower()}"
+    ip_ident = f"ip:{ip}"
 
-    remaining = await login_throttle.check(identity)
+    u_fails = await throttle.failure_count(u_ident)
+    ip_fails = await throttle.failure_count(ip_ident)
+    if max(u_fails, ip_fails) >= settings.auth.captcha_threshold:
+        if not body.captcha or not captcha.verify_challenge(
+            body.captcha.id, body.captcha.answer
+        ):
+            return _captcha_response("需要人机验证，请完成算术题")
+
+    remaining = max(
+        await throttle.check_lock(u_ident),
+        await throttle.check_lock(ip_ident),
+    )
     if remaining > 0:
         mins = max(1, int(remaining // 60) + 1)
         await _audit(None, body.username, "login_locked", ip, f"remaining_s={int(remaining)}")
@@ -271,9 +358,14 @@ async def login(body: LoginReq, request: Request) -> TokenResp:
         )
 
     user = await repo.get_user_with_hash(body.username)
+    if not user:
+        verify_password(body.password, _dummy_hash())
 
     if not user or not verify_password(body.password, user.get("password_hash", "")):
-        locked = await login_throttle.record_failure(identity)
+        locked = max(
+            await throttle.record_failure(u_ident, max_failures=throttle.USER_MAX_FAILURES),
+            await throttle.record_failure(ip_ident, max_failures=throttle.IP_MAX_FAILURES),
+        )
         await _audit(None, body.username, "login_failed", ip, f"just_locked={locked > 0}")
         logger.info("user_login_failed", username=body.username, ip=ip, just_locked=locked > 0)
         if locked > 0:
@@ -287,12 +379,19 @@ async def login(body: LoginReq, request: Request) -> TokenResp:
     if user.get("status") != "active":
         raise HTTPException(status_code=403, detail="账号已被禁用")
 
-    await login_throttle.record_success(identity)
+    await throttle.record_success(u_ident)
+    await throttle.record_success(ip_ident)
     user.pop("password_hash", None)
     await _attach_rbac(user)
     await _audit(user["id"], user["username"], "login_success", ip)
     logger.info("user_login", username=body.username, ip=ip)
     return _issue_token(user)
+
+
+@router.get("/auth/captcha")
+async def get_captcha() -> dict:
+
+    return captcha.create_challenge(ttl=settings.auth.captcha_ttl_seconds)
 
 
 @router.post("/auth/change-password", status_code=204)
@@ -401,9 +500,7 @@ async def send_verification(
 @router.get("/auth/registration", response_model=RegistrationStatusResp)
 async def registration_status() -> RegistrationStatusResp:
 
-    return RegistrationStatusResp(
-        allow_registration=await settings_repo.is_registration_open()
-    )
+    return await _registration_status()
 
 
 @router.get("/auth/me", response_model=UserPublic)
@@ -420,9 +517,7 @@ async def me(user: dict[str, Any] = Depends(get_current_user)) -> UserPublic:
 async def get_registration_setting(
     _admin: dict[str, Any] = Depends(require_admin),
 ) -> RegistrationStatusResp:
-    return RegistrationStatusResp(
-        allow_registration=await settings_repo.is_registration_open()
-    )
+    return await _registration_status()
 
 
 @router.put("/settings/registration", response_model=RegistrationStatusResp)
@@ -436,7 +531,7 @@ async def set_registration_setting(
         by=admin.get("username"),
         allow_registration=body.allow_registration,
     )
-    return RegistrationStatusResp(allow_registration=body.allow_registration)
+    return await _registration_status()
 
 
 @router.get("/users", response_model=UserListResp)
