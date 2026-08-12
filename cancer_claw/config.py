@@ -184,6 +184,17 @@ class AuthConfig(BaseModel):
     bootstrap_admin_username: str = "admin"
     bootstrap_admin_password: str = ""
 
+class MailConfig(BaseModel):
+
+    host: str = ""
+    port: int = 587
+    username: str = ""
+    password: str = ""
+    from_addr: str = ""
+    starttls: bool = True
+    timeout: int = 10
+    public_base_url: str = ""
+
 class FeaturesConfig(BaseModel):
 
     project_sharing: bool = False
@@ -208,6 +219,7 @@ class Settings(BaseModel):
     sandbox: SandboxConfig = SandboxConfig()
     diagnostics: DiagnosticsConfig = DiagnosticsConfig()
     auth: AuthConfig = AuthConfig()
+    mail: MailConfig = MailConfig()
     features: FeaturesConfig = FeaturesConfig()
     project_root: str = ""
 
@@ -317,6 +329,28 @@ def _apply_env_overrides(settings: Settings) -> Settings:
         settings.auth.bootstrap_admin_password = os.environ[
             "CANCER_CLAW_AUTH_BOOTSTRAP_PASSWORD"
         ]
+
+    if os.environ.get("CANCER_CLAW_SMTP_HOST"):
+        settings.mail.host = os.environ["CANCER_CLAW_SMTP_HOST"]
+    if os.environ.get("CANCER_CLAW_SMTP_PORT"):
+        try:
+            settings.mail.port = int(os.environ["CANCER_CLAW_SMTP_PORT"])
+        except ValueError:
+            pass
+    if os.environ.get("CANCER_CLAW_SMTP_USERNAME"):
+        settings.mail.username = os.environ["CANCER_CLAW_SMTP_USERNAME"]
+    if os.environ.get("CANCER_CLAW_SMTP_PASSWORD"):
+        settings.mail.password = os.environ["CANCER_CLAW_SMTP_PASSWORD"]
+    if os.environ.get("CANCER_CLAW_SMTP_FROM"):
+        settings.mail.from_addr = os.environ["CANCER_CLAW_SMTP_FROM"]
+    if os.environ.get("CANCER_CLAW_SMTP_STARTTLS"):
+        settings.mail.starttls = os.environ["CANCER_CLAW_SMTP_STARTTLS"].lower() in (
+            "1",
+            "true",
+            "yes",
+        )
+    if os.environ.get("CANCER_CLAW_PUBLIC_BASE_URL"):
+        settings.mail.public_base_url = os.environ["CANCER_CLAW_PUBLIC_BASE_URL"]
 
 
     if os.environ.get("CANCER_CLAW_FEATURE_PROJECT_SHARING"):
