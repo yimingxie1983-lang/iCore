@@ -1,7 +1,5 @@
-
-
 import { useEffect, useState } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 
 import { api } from '@/client/services/client'
@@ -12,11 +10,12 @@ import { Label } from '@/ui/widgets/ui/label'
 import { toast } from '@/ui/widgets/ui/sonner'
 import { BrandHero, useBrandVariant } from '@/ui/widgets/Layout/BrandMark'
 
-type Mode = 'login' | 'register'
+type Mode = 'login' | 'register' | 'forgot' | 'reset'
 
 export default function Login() {
   const nav = useNavigate()
   const loc = useLocation()
+  const [searchParams, setSearchParams] = useSearchParams()
   const setAuth = useAuthStore((s) => s.setAuth)
   const brand = useBrandVariant()
 
@@ -24,7 +23,12 @@ export default function Login() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [displayName, setDisplayName] = useState('')
+  const [email, setEmail] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
+
+  const resetToken = searchParams.get('reset_token')
+  const verifyToken = searchParams.get('verify_token')
 
   const { data: reg } = useQuery({
     queryKey: ['registration-status'],
@@ -34,12 +38,38 @@ export default function Login() {
   const allowRegistration = !!reg?.allow_registration
 
   useEffect(() => {
+    if (resetToken) setMode('reset')
+  }, [resetToken])
+
+  useEffect(() => {
     if (!allowRegistration && mode === 'register') setMode('login')
   }, [allowRegistration, mode])
 
+  useEffect(() => {
+    if (!verifyToken) return
+    let cancelled = false
+    api
+      .verifyEmail(verifyToken)
+      .then(() => {
+        if (!cancelled) toast.success('邮箱验证成功')
+      })
+      .catch((err) => {
+        if (!cancelled) toast.error(err instanceof Error ? err.message : '邮箱验证失败')
+      })
+      .finally(() => {
+        if (!cancelled) {
+          searchParams.delete('verify_token')
+          setSearchParams(searchParams, { replace: true })
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [verifyToken, searchParams, setSearchParams])
+
   const from = (loc.state as { from?: string } | null)?.from || '/chat'
 
-  const onSubmit = async (e: React.FormEvent) => {
+  const onLoginOrRegister = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!username.trim() || !password) {
       toast.error('请输入用户名和密码')
@@ -50,8 +80,12 @@ export default function Login() {
         toast.error('用户名至少需要 3 个字符')
         return
       }
-      if (password.length < 6) {
-        toast.error('密码至少需要 6 位')
+      if (password.length < 8) {
+        toast.error('密码至少需要 8 位')
+        return
+      }
+      if (password !== confirmPassword) {
+        toast.error('两次输入的密码不一致')
         return
       }
     }
@@ -63,6 +97,7 @@ export default function Login() {
           : await api.register({
               username: username.trim(),
               password,
+              email: email.trim() || undefined,
               display_name: displayName.trim() || undefined,
             })
       setAuth(resp.access_token, resp.user as AuthUser)
@@ -80,16 +115,68 @@ export default function Login() {
     }
   }
 
+  const onForgot = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!username.trim()) {
+      toast.error('请输入用户名或邮箱')
+      return
+    }
+    setSubmitting(true)
+    try {
+      const value = username.trim()
+      await api.forgotPassword(
+        value.includes('@') ? { email: value } : { username: value },
+      )
+      toast.success('如账号存在且已绑定邮箱，重置邮件已发送，请查收')
+      setMode('login')
+      setUsername('')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '操作失败')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const onReset = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!resetToken) {
+      toast.error('缺少重置令牌')
+      return
+    }
+    if (password.length < 8) {
+      toast.error('新密码至少需要 8 位')
+      return
+    }
+    if (password !== confirmPassword) {
+      toast.error('两次输入的密码不一致')
+      return
+    }
+    setSubmitting(true)
+    try {
+      await api.resetPassword(resetToken, password)
+      toast.success('密码已重置，请使用新密码登录')
+      searchParams.delete('reset_token')
+      setSearchParams(searchParams, { replace: true })
+      setMode('login')
+      setPassword('')
+      setConfirmPassword('')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '重置失败')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const showTabs = mode !== 'reset'
+
   return (
     <div className="flex h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8">
         <div className="mb-6">
-          {}
           <BrandHero brand={brand} size={96} />
         </div>
 
-        {}
-        {allowRegistration && (
+        {showTabs && allowRegistration && (
           <div className="mb-5 grid grid-cols-2 gap-1 rounded-lg bg-muted p-1 text-sm">
             {(['login', 'register'] as Mode[]).map((m) => (
               <button
@@ -109,17 +196,36 @@ export default function Login() {
           </div>
         )}
 
-        <form onSubmit={onSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="username">用户名</Label>
-            <Input
-              id="username"
-              autoComplete="username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="请输入用户名"
-            />
+        {mode === 'forgot' && (
+          <div className="mb-5 rounded-lg bg-muted p-3 text-[12px] leading-relaxed text-muted-foreground">
+            输入注册时使用的用户名或邮箱，系统将发送密码重置链接（需已配置邮件服务）。
           </div>
+        )}
+
+        <form
+          onSubmit={
+            mode === 'login' || mode === 'register'
+              ? onLoginOrRegister
+              : mode === 'forgot'
+                ? onForgot
+                : onReset
+          }
+          className="space-y-4"
+        >
+          {mode !== 'reset' && (
+            <div className="space-y-1.5">
+              <Label htmlFor="username">
+                {mode === 'forgot' ? '用户名或邮箱' : '用户名'}
+              </Label>
+              <Input
+                id="username"
+                autoComplete={mode === 'forgot' ? 'email' : 'username'}
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder={mode === 'forgot' ? '请输入用户名或邮箱' : '请输入用户名'}
+              />
+            </div>
+          )}
 
           {mode === 'register' && (
             <div className="space-y-1.5">
@@ -133,30 +239,100 @@ export default function Login() {
             </div>
           )}
 
-          <div className="space-y-1.5">
-            <Label htmlFor="password">密码</Label>
-            <Input
-              id="password"
-              type="password"
-              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder={mode === 'register' ? '至少 6 位' : '请输入密码'}
-            />
-          </div>
+          {mode === 'register' && (
+            <div className="space-y-1.5">
+              <Label htmlFor="email">邮箱（用于找回密码，可选）</Label>
+              <Input
+                id="email"
+                type="email"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="name@example.com"
+              />
+            </div>
+          )}
+
+          {(mode === 'login' || mode === 'register' || mode === 'reset') && (
+            <div className="space-y-1.5">
+              <Label htmlFor="password">
+                {mode === 'reset' ? '新密码（至少 8 位）' : '密码'}
+              </Label>
+              <Input
+                id="password"
+                type="password"
+                autoComplete={
+                  mode === 'login'
+                    ? 'current-password'
+                    : mode === 'register'
+                      ? 'new-password'
+                      : 'new-password'
+                }
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder={mode === 'reset' ? '至少 8 位' : '请输入密码'}
+              />
+            </div>
+          )}
+
+          {(mode === 'register' || mode === 'reset') && (
+            <div className="space-y-1.5">
+              <Label htmlFor="confirm_password">确认密码</Label>
+              <Input
+                id="confirm_password"
+                type="password"
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="再次输入密码"
+              />
+            </div>
+          )}
 
           <Button type="submit" className="w-full" disabled={submitting}>
-            {submitting ? '请稍候…' : mode === 'login' ? '登录' : '注册并登录'}
+            {submitting
+              ? '请稍候…'
+              : mode === 'login'
+                ? '登录'
+                : mode === 'register'
+                  ? '注册并登录'
+                  : mode === 'forgot'
+                    ? '发送重置邮件'
+                    : '重置密码'}
           </Button>
         </form>
 
-        <p className="mt-4 text-center text-[11px] leading-relaxed text-muted-foreground">
-          {allowRegistration
-            ? mode === 'register'
-              ? '首次部署可直接注册——首个注册用户将成为管理员。'
-              : '没有账号？切换到"注册"自助建号。'
-            : '本实例未开放自助注册，请联系管理员建号。'}
-        </p>
+        <div className="mt-4 flex flex-col items-center gap-2">
+          {mode === 'login' && (
+            <button
+              type="button"
+              onClick={() => setMode('forgot')}
+              className="text-[12px] text-muted-foreground transition-colors hover:text-foreground"
+            >
+              忘记密码？
+            </button>
+          )}
+          {(mode === 'forgot' || mode === 'reset') && (
+            <button
+              type="button"
+              onClick={() => {
+                setMode('login')
+                setPassword('')
+                setConfirmPassword('')
+              }}
+              className="text-[12px] text-muted-foreground transition-colors hover:text-foreground"
+            >
+              返回登录
+            </button>
+          )}
+          <p className="text-center text-[11px] leading-relaxed text-muted-foreground">
+            {allowRegistration
+              ? mode === 'register'
+                ? '首次部署可直接注册——第一个注册用户将成为管理员。'
+                : '没有账号？切换到"注册"自助建号。'
+              : '本实例未开放自助注册，请联系管理员建号。'}
+          </p>
+        </div>
       </div>
     </div>
   )

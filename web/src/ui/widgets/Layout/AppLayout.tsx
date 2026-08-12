@@ -13,8 +13,10 @@ import {
   Menu,
   MessageSquare,
   Network,
+  Settings,
   Share2,
   ShieldCheck,
+  ScrollText,
   Sparkles,
   Users,
   Wallet,
@@ -61,6 +63,7 @@ const ADMIN_NAV_ITEMS: NavItem[] = [
   { to: '/admin/roles', label: '角色管理', icon: ShieldCheck, desc: 'RBAC 角色 / 权限分配', perm: 'menu.roles' },
   { to: '/admin/evolution', label: '进化审批', icon: Sparkles, desc: '自进化 Skill 草稿闸门', perm: 'menu.evolution' },
   { to: '/admin/monitor', label: '系统监控', icon: Gauge, desc: '实时资源 / 服务健康', perm: 'menu.monitor' },
+  { to: '/admin/auth-events', label: '安全日志', icon: ScrollText, desc: '登录 / 改密 / 审计事件', perm: 'audit.view' },
 ]
 
 function UserMenu() {
@@ -94,6 +97,11 @@ function UserMenu() {
             </span>
           </div>
         </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => nav('/account')}>
+          <Settings className="h-4 w-4" />
+          账户设置
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
           className="text-destructive focus:text-destructive"

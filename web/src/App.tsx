@@ -12,10 +12,12 @@ import Memory from './ui/views/Memory'
 import Skills from './ui/views/Skills'
 import Credits from './ui/views/Credits'
 import Login from './ui/views/Login'
+import Account from './ui/views/Account'
 import AdminUsers from './ui/views/admin/Users'
 import AdminRoles from './ui/views/admin/Roles'
 import AdminEvolution from './ui/views/admin/Evolution'
 import AdminMonitor from './ui/views/admin/Monitor'
+import AdminAuthEvents from './ui/views/admin/AuthEvents'
 import Market from './ui/views/Market'
 import { api, type AuthUser } from './client/services/client'
 import {
@@ -106,6 +108,7 @@ function App() {
         <Route path="/providers" element={<Providers />} />
         <Route path="/memory" element={<Memory />} />
         <Route path="/credits" element={<Credits />} />
+        <Route path="/account" element={<Account />} />
         <Route
           path="/market"
           element={
@@ -144,6 +147,14 @@ function App() {
             <RequireAdmin>
               <AdminMonitor />
             </RequireAdmin>
+          }
+        />
+        <Route
+          path="/admin/auth-events"
+          element={
+            <RequirePermission perm="audit.view">
+              <AdminAuthEvents />
+            </RequirePermission>
           }
         />
         <Route path="*" element={<Navigate to="/chat" replace />} />

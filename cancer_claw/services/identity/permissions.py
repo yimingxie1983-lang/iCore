@@ -23,6 +23,7 @@ ROLE_MANAGE = "role.manage"
 BILLING_MANAGE = "billing.manage"
 PROVIDER_MANAGE = "provider.manage"
 EVOLUTION_MANAGE = "evolution.manage"
+AUDIT_VIEW = "audit.view"
 
 PERMISSION_CATALOG: list[dict] = [
     {
@@ -57,6 +58,7 @@ PERMISSION_CATALOG: list[dict] = [
             {"key": BILLING_MANAGE, "label": "计费配置 / 充值"},
             {"key": PROVIDER_MANAGE, "label": "模型供应商管理"},
             {"key": EVOLUTION_MANAGE, "label": "进化草稿审批"},
+            {"key": AUDIT_VIEW, "label": "查看安全日志"},
         ],
     },
 ]
