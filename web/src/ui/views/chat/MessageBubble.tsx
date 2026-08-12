@@ -111,18 +111,58 @@ function AssistantAvatar({ streaming }: { streaming?: boolean }) {
   )
 }
 
+function AttachmentImage({
+  projectId,
+  img,
+}: {
+  projectId: string | null
+  img: { previewUrl?: string; path: string; name?: string }
+}) {
+  const [src, setSrc] = useState(img.previewUrl || '')
+
+  useEffect(() => {
+    if (src || !projectId || !img.path) return
+    let cancelled = false
+    api
+      .signFileUrl(projectId, img.path)
+      .then((u) => {
+        if (!cancelled) setSrc(u.url)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [src, projectId, img.path])
+
+  if (!src) {
+    return (
+      <span
+        className="inline-flex max-w-[220px] items-center gap-1 rounded border border-border bg-muted/60 px-1.5 py-0.5 text-[11px]"
+        title={img.name}
+      >
+        <span className="truncate font-medium text-foreground">🖼️ {img.name}</span>
+      </span>
+    )
+  }
+  return (
+    <a
+      href={src}
+      target="_blank"
+      rel="noreferrer"
+      className="block overflow-hidden rounded-lg border border-border bg-card shadow-sm transition hover:ring-2 hover:ring-secondary"
+      title={img.name}
+    >
+      <img src={src} alt={img.name} className="block max-h-44 max-w-[260px] object-cover" />
+    </a>
+  )
+}
+
 function UserMessage({ message }: { message: ChatMessage }) {
   const now = useRelativeNow(15_000, true)
   const projectId = useSessionsStore((s) => s.projectId)
   const attachments = message.attachments || []
   const images = attachments.filter((a) => a.kind === 'image')
   const files = attachments.filter((a) => a.kind !== 'image')
-
-  const imgSrc = (img: { previewUrl?: string; path: string }) => {
-    if (img.previewUrl) return img.previewUrl
-    if (projectId && img.path) return api.fileRawUrl(projectId, img.path)
-    return ''
-  }
 
   return (
     <div className="flex flex-row-reverse gap-3">
@@ -143,36 +183,9 @@ function UserMessage({ message }: { message: ChatMessage }) {
         </div>
         {images.length > 0 && (
           <div className="flex flex-wrap justify-end gap-1.5">
-            {images.map((img) => {
-              const src = imgSrc(img)
-              if (src) {
-                return (
-                  <a
-                    key={img.path}
-                    href={src}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="block overflow-hidden rounded-lg border border-border bg-card shadow-sm transition hover:ring-2 hover:ring-secondary"
-                    title={img.name}
-                  >
-                    <img
-                      src={src}
-                      alt={img.name}
-                      className="block max-h-44 max-w-[260px] object-cover"
-                    />
-                  </a>
-                )
-              }
-              return (
-                <span
-                  key={img.path}
-                  className="inline-flex max-w-[220px] items-center gap-1 rounded border border-border bg-muted/60 px-1.5 py-0.5 text-[11px]"
-                  title={img.name}
-                >
-                  <span className="truncate font-medium text-foreground">🖼️ {img.name}</span>
-                </span>
-              )
-            })}
+            {images.map((img) => (
+              <AttachmentImage key={img.path} projectId={projectId} img={img} />
+            ))}
           </div>
         )}
         {files.length > 0 && (

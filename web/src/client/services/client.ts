@@ -107,7 +107,13 @@ http.interceptors.response.use(
     const status = err.response?.status
     const url = err.config?.url || ''
     const isAuthEndpoint = url.includes('/auth/login') || url.includes('/auth/register')
-    if (status === 401 && !isAuthEndpoint) {
+    const detail =
+      err.response?.data && typeof err.response.data === 'object'
+        ? (err.response.data as { detail?: unknown }).detail
+        : undefined
+    const accountDisabled =
+      status === 403 && typeof detail === 'string' && detail.includes('禁用')
+    if ((status === 401 && !isAuthEndpoint) || accountDisabled) {
       forceLogout()
     }
 
@@ -139,12 +145,28 @@ export interface AuthUser {
   status: string
 
   credits_balance?: number
+  email_verified?: boolean
   created_at?: string | null
   updated_at?: string | null
 
   permissions?: string[]
 
   roles?: { id: string; name: string }[]
+}
+
+export interface AuthEventItem {
+  id: number
+  user_id?: string | null
+  username: string
+  event_type: string
+  ip: string
+  detail: string
+  created_at?: string | null
+}
+
+export interface SignedFileUrl {
+  url: string
+  expires_at: number
 }
 
 export interface Role {
@@ -652,6 +674,28 @@ export const api = {
     display_name?: string
   }) => http.post<TokenResp>('/auth/register', payload).then((r) => r.data),
   me: () => http.get<AuthUser>('/auth/me').then((r) => r.data),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    http
+      .post('/auth/change-password', {
+        current_password: currentPassword,
+        new_password: newPassword,
+      })
+      .then((r) => r.data),
+  forgotPassword: (payload: { username?: string; email?: string }) =>
+    http.post<{ ok: boolean }>('/auth/forgot-password', payload).then((r) => r.data),
+  resetPassword: (token: string, newPassword: string) =>
+    http
+      .post<{ ok: boolean }>('/auth/reset-password', {
+        token,
+        new_password: newPassword,
+      })
+      .then((r) => r.data),
+  verifyEmail: (token: string) =>
+    http
+      .get<{ ok: boolean }>('/auth/verify-email', { params: { token } })
+      .then((r) => r.data),
+  sendVerificationEmail: () =>
+    http.post<{ ok: boolean }>('/auth/send-verification').then((r) => r.data),
 
   getRegistrationStatus: () =>
     http
@@ -689,6 +733,10 @@ export const api = {
   ) => http.patch<AuthUser>(`/users/${userId}`, payload).then((r) => r.data),
   deleteUser: (userId: string) =>
     http.delete<void>(`/users/${userId}`).then((r) => r.data),
+  listAuthEvents: (params?: { limit?: number; offset?: number }) =>
+    http
+      .get<{ total: number; items: AuthEventItem[] }>('/admin/auth-events', { params })
+      .then((r) => r.data),
 
   myCredits: () => http.get<CreditBalance>('/me/credits').then((r) => r.data),
   myCreditTransactions: (params?: {
@@ -1160,15 +1208,10 @@ export const api = {
       })
       .then((r) => r.data),
 
-  fileRawUrl: (projectId: string, path: string, download = false): string => {
-    const base = baseURL.replace(/\/$/, '')
-    const qs = new URLSearchParams({ path })
-    if (download) qs.set('download', 'true')
-
-    const token = getToken()
-    if (token) qs.set('access_token', token)
-    return `${base}/projects/${projectId}/files/raw?${qs.toString()}`
-  },
+  signFileUrl: (projectId: string, path: string, download = false) =>
+    http
+      .post<SignedFileUrl>(`/projects/${projectId}/files/sign`, { path, download })
+      .then((r) => r.data),
 
   previewFile: (
     projectId: string,

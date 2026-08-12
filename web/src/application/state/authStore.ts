@@ -14,6 +14,7 @@ export interface AuthUser {
   display_name: string
   role: 'admin' | 'user' | string
   status: string
+  email_verified?: boolean
 
   permissions?: string[]
 

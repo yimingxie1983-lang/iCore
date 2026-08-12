@@ -1,5 +1,6 @@
 
 
+import { useEffect, useState } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import AppLayout from './ui/widgets/Layout/AppLayout'
 import ChatWorkbench from './ui/views/ChatWorkbench'
@@ -16,13 +17,51 @@ import AdminRoles from './ui/views/admin/Roles'
 import AdminEvolution from './ui/views/admin/Evolution'
 import AdminMonitor from './ui/views/admin/Monitor'
 import Market from './ui/views/Market'
-import { useAuthStore, checkPermission } from './application/state/authStore'
+import { api, type AuthUser } from './client/services/client'
+import {
+  useAuthStore,
+  checkPermission,
+  forceLogout,
+} from './application/state/authStore'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((s) => s.token)
+  const setUser = useAuthStore((s) => s.setUser)
+  const [validating, setValidating] = useState(!!token)
   const loc = useLocation()
+
+  useEffect(() => {
+    if (!token) {
+      setValidating(false)
+      return
+    }
+    let cancelled = false
+    setValidating(true)
+    api
+      .me()
+      .then((u) => {
+        if (!cancelled) {
+          setUser(u as AuthUser)
+          setValidating(false)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) forceLogout()
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [token, setUser])
+
   if (!token) {
     return <Navigate to="/login" replace state={{ from: loc.pathname + loc.search }} />
+  }
+  if (validating) {
+    return (
+      <div className="flex h-screen items-center justify-center text-sm text-muted-foreground">
+        正在验证登录状态…
+      </div>
+    )
   }
   return <>{children}</>
 }

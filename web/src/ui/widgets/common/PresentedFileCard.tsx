@@ -1,6 +1,6 @@
 
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   Download,
   ExternalLink,
@@ -77,14 +77,30 @@ interface CardProps {
 
 export default function PresentedFileCard({ projectId, file }: CardProps) {
   const Icon = iconFor(file)
-  const rawUrl = useMemo(
-    () => api.fileRawUrl(projectId, file.path),
-    [projectId, file.path],
-  )
-  const downloadUrl = useMemo(
-    () => api.fileRawUrl(projectId, file.path, true),
-    [projectId, file.path],
-  )
+  const [signed, setSigned] = useState<{ raw?: string; download?: string }>({})
+
+  useEffect(() => {
+    let cancelled = false
+    setSigned({})
+    api
+      .signFileUrl(projectId, file.path)
+      .then((u) => {
+        if (!cancelled) setSigned((s) => ({ ...s, raw: u.url }))
+      })
+      .catch(() => {})
+    api
+      .signFileUrl(projectId, file.path, true)
+      .then((u) => {
+        if (!cancelled) setSigned((s) => ({ ...s, download: u.url }))
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [projectId, file.path])
+
+  const rawUrl = signed.raw
+  const downloadUrl = signed.download
 
   return (
     <div className="not-prose rounded-lg border border-border bg-card shadow-sm">
@@ -108,7 +124,14 @@ export default function PresentedFileCard({ projectId, file }: CardProps) {
           className="h-6 w-6"
           title="在新标签打开"
         >
-          <a href={rawUrl} target="_blank" rel="noopener noreferrer">
+          <a
+            href={rawUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => {
+              if (!rawUrl) e.preventDefault()
+            }}
+          >
             <ExternalLink className="h-3 w-3" />
           </a>
         </Button>
@@ -119,14 +142,26 @@ export default function PresentedFileCard({ projectId, file }: CardProps) {
           className="h-6 w-6"
           title="下载"
         >
-          <a href={downloadUrl} download>
+          <a
+            href={downloadUrl}
+            download
+            onClick={(e) => {
+              if (!downloadUrl) e.preventDefault()
+            }}
+          >
             <Download className="h-3 w-3" />
           </a>
         </Button>
       </div>
 
       {}
-      <PreviewBody projectId={projectId} file={file} rawUrl={rawUrl} />
+      {rawUrl ? (
+        <PreviewBody projectId={projectId} file={file} rawUrl={rawUrl} />
+      ) : (
+        <div className="flex items-center justify-center p-6 text-xs text-muted-foreground">
+          正在生成访问链接…
+        </div>
+      )}
     </div>
   )
 }
