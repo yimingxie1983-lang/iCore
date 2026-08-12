@@ -709,7 +709,7 @@ export const api = {
   register: (payload: {
     username: string
     password: string
-    email?: string
+    email: string
     display_name?: string
     invite_code?: string
     captcha?: CaptchaAnswer

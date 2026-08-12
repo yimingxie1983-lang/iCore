@@ -58,7 +58,7 @@ class CaptchaAnswer(BaseModel):
 class RegisterReq(BaseModel):
     username: str = Field(..., min_length=3, max_length=40)
     password: str = Field(..., min_length=6, max_length=128)
-    email: str = Field("", max_length=120)
+    email: str = Field(..., min_length=1, max_length=120)
     display_name: str = Field("", max_length=60)
     invite_code: str = Field("", max_length=64)
     captcha: CaptchaAnswer | None = None

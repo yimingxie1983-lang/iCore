@@ -13,13 +13,14 @@ async def _get_captcha(client):
     return resp.json()
 
 
-async def _register(client, username="alice", password="StrongPass1!", email=""):
+async def _register(client, username="alice", password="StrongPass1!", email="alice@example.com"):
     payload = {
         "username": username,
         "password": password,
         "email": email,
         "display_name": username,
     }
+    assert email, "registration requires email in tests"
     challenge = await _get_captcha(client)
     payload["captcha"] = {
         "id": challenge["id"],
@@ -54,9 +55,18 @@ async def test_register_login_me(client):
 
 async def test_register_rejects_weak_password(client):
     resp = await client.post(
-        "/api/auth/register", json={"username": "weak", "password": "12345678"}
+        "/api/auth/register",
+        json={"username": "weak", "password": "12345678", "email": "weak@example.com"},
     )
     assert resp.status_code == 400
+
+
+async def test_register_requires_email(client):
+    resp = await client.post(
+        "/api/auth/register",
+        json={"username": "noemail", "password": "StrongPass1!"},
+    )
+    assert resp.status_code == 422
 
 
 async def test_change_password_invalidates_old_token(client):
@@ -284,7 +294,8 @@ async def test_login_wrong_captcha_rejected(client):
 
 async def test_register_requires_captcha_when_no_invite(client):
     resp = await client.post(
-        "/api/auth/register", json={"username": "nocap", "password": "StrongPass1!"}
+        "/api/auth/register",
+        json={"username": "nocap", "password": "StrongPass1!", "email": "nocap@example.com"},
     )
     assert resp.status_code == 428
     challenge = resp.json()["challenge"]
@@ -294,6 +305,7 @@ async def test_register_requires_captcha_when_no_invite(client):
         json={
             "username": "nocap",
             "password": "StrongPass1!",
+            "email": "nocap@example.com",
             "captcha": {"id": challenge["id"], "answer": _solve_challenge(challenge)},
         },
     )
@@ -310,6 +322,7 @@ async def test_register_invite_code_flow(client, monkeypatch):
             json={
                 "username": "invite1",
                 "password": "StrongPass1!",
+                "email": "invite1@example.com",
                 "captcha": {"id": "x" * 8, "answer": "1"},
             },
         )
@@ -320,6 +333,7 @@ async def test_register_invite_code_flow(client, monkeypatch):
             json={
                 "username": "invite1",
                 "password": "StrongPass1!",
+                "email": "invite1@example.com",
                 "invite_code": "WRONG",
             },
         )
@@ -330,6 +344,7 @@ async def test_register_invite_code_flow(client, monkeypatch):
             json={
                 "username": "invite1",
                 "password": "StrongPass1!",
+                "email": "invite1@example.com",
                 "invite_code": "TEST-INVITE-123",
             },
         )
@@ -349,6 +364,7 @@ async def test_register_rate_limited_per_ip(client):
                 json={
                     "username": f"user{i}",
                     "password": "StrongPass1!",
+                    "email": f"user{i}@example.com",
                     "invite_code": "TEST-INVITE-123",
                 },
             )
@@ -358,6 +374,7 @@ async def test_register_rate_limited_per_ip(client):
             json={
                 "username": "user6",
                 "password": "StrongPass1!",
+                "email": "user6@example.com",
                 "invite_code": "TEST-INVITE-123",
             },
         )

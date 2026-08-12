@@ -19,6 +19,7 @@ async def _register_and_project(client):
         json={
             "username": "fileuser",
             "password": "StrongPass1!",
+            "email": "fileuser@example.com",
             "captcha": {
                 "id": challenge["id"],
                 "answer": _solve_challenge(challenge),

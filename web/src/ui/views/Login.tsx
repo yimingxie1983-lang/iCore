@@ -108,6 +108,14 @@ export default function Login() {
         toast.error('密码至少需要 8 位')
         return
       }
+      if (!email.trim()) {
+        toast.error('请填写邮箱')
+        return
+      }
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) {
+        toast.error('邮箱格式不正确')
+        return
+      }
       if (password !== confirmPassword) {
         toast.error('两次输入的密码不一致')
         return
@@ -135,7 +143,7 @@ export default function Login() {
           : await api.register({
               username: username.trim(),
               password,
-              email: email.trim() || undefined,
+              email: email.trim(),
               display_name: displayName.trim() || undefined,
               invite_code: requireInviteCode ? inviteCode.trim() : undefined,
               captcha:
@@ -288,14 +296,15 @@ export default function Login() {
 
           {mode === 'register' && (
             <div className="space-y-1.5">
-              <Label htmlFor="email">邮箱（用于找回密码，可选）</Label>
+              <Label htmlFor="email">邮箱（必填，用于找回密码）</Label>
               <Input
                 id="email"
                 type="email"
                 autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="name@example.com"
+                placeholder="name@example.com（必填）"
+                required
               />
             </div>
           )}
