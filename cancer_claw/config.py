@@ -180,6 +180,7 @@ class AuthConfig(BaseModel):
     secret: str = ""
     token_ttl_hours: int = 168
     allow_registration: bool = False
+    min_password_length: int = 8
     bootstrap_admin_username: str = "admin"
     bootstrap_admin_password: str = ""
 
@@ -297,6 +298,13 @@ def _apply_env_overrides(settings: Settings) -> Settings:
         try:
             settings.auth.token_ttl_hours = int(
                 os.environ["CANCER_CLAW_AUTH_TOKEN_TTL_HOURS"]
+            )
+        except ValueError:
+            pass
+    if os.environ.get("CANCER_CLAW_AUTH_MIN_PASSWORD_LENGTH"):
+        try:
+            settings.auth.min_password_length = int(
+                os.environ["CANCER_CLAW_AUTH_MIN_PASSWORD_LENGTH"]
             )
         except ValueError:
             pass
