@@ -3,22 +3,29 @@
 from __future__ import annotations
 
 import csv as _csv
+import hashlib
+import hmac
 import io
 import mimetypes
+import time
 from pathlib import Path
 from typing import Any
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field
 
-from cancer_claw.services.identity.deps import require_project_read
 from cancer_claw.config import settings
 from cancer_claw.db import get_db
 from cancer_claw.text_io import decode_text_bytes, encoding_for_text_open
 from cancer_claw.capabilities.toolkit.workspace import _is_descendant
+from cancer_claw.services.identity.deps import (
+    get_auth_secret,
+    require_project_read,
+    resolve_access_from_request,
+)
 
 logger = structlog.get_logger()
 router = APIRouter()
@@ -36,6 +43,17 @@ _TEXT_MIME_NEEDS_CHARSET: frozenset[str] = frozenset({
     "application/javascript",
     "image/svg+xml",
 })
+
+def _sign_url(payload: str, secret: str) -> str:
+
+    return hmac.new(
+        secret.encode("utf-8"), payload.encode("utf-8"), hashlib.sha256
+    ).hexdigest()
+
+
+def _signed_payload(project_id: str, path: str, download: bool, exp: int) -> str:
+
+    return f"{project_id}|{path}|{int(download)}|{exp}"
 
 async def _assert_project_exists(project_id: str) -> None:
     db = await get_db()
@@ -140,11 +158,26 @@ class FilePreviewCsv(BaseModel):
     summary="二进制返回项目内任意文件（图片/PDF/Excel/二进制下载）",
 )
 async def get_raw_file(
+    request: Request,
     project_id: str,
     path: str = Query(..., description="项目根之下的文件路径（posix）"),
     download: bool = Query(default=False, description="true=强制 attachment 下载；false=inline"),
-    _ctx: dict = Depends(require_project_read),
+    sig: str | None = Query(default=None, description="短时签名（替代 Authorization 头）"),
+    exp: int | None = Query(default=None, description="签名过期时间戳（秒）"),
 ):
+
+    if sig is not None or exp is not None:
+        if not sig or exp is None:
+            raise HTTPException(status_code=400, detail="签名参数不完整")
+        expected = _sign_url(
+            _signed_payload(project_id, path, download, exp), get_auth_secret()
+        )
+        if not hmac.compare_digest(expected, sig):
+            raise HTTPException(status_code=401, detail="签名无效")
+        if time.time() > exp:
+            raise HTTPException(status_code=401, detail="链接已过期")
+    else:
+        await resolve_access_from_request(request, project_id, need="read")
 
     await _assert_project_exists(project_id)
     target = _resolve_safe_file(project_id, path)
@@ -173,6 +206,40 @@ async def get_raw_file(
         media_type=mime,
         headers=headers,
     )
+
+class SignFileReq(BaseModel):
+    path: str = Field(..., max_length=1024)
+    download: bool = False
+
+@router.post(
+    "/projects/{project_id}/files/sign",
+    tags=["项目文件"],
+    summary="为项目内文件生成短时签名 URL（避免 token 出现在 URL 中）",
+)
+async def sign_file(
+    project_id: str,
+    body: SignFileReq,
+    _ctx: dict = Depends(require_project_read),
+) -> dict:
+
+    _resolve_safe_file(project_id, body.path)
+    exp = int(time.time()) + settings.auth.file_url_ttl_seconds
+    sig = _sign_url(
+        _signed_payload(project_id, body.path, body.download, exp),
+        get_auth_secret(),
+    )
+    qs = urlencode(
+        {
+            "path": body.path,
+            "download": str(body.download).lower(),
+            "exp": str(exp),
+            "sig": sig,
+        }
+    )
+    return {
+        "url": f"/api/projects/{project_id}/files/raw?{qs}",
+        "expires_at": exp,
+    }
 
 @router.get(
     "/projects/{project_id}/files/preview",
