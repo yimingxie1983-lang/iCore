@@ -28,6 +28,7 @@ cancer_claw/var/agent_instances/*/soul.md
 logs/
 .diagnostics/
 .pytest_cache/
+.pytest-tmp/
 .coverage
 htmlcov/
 .tox/
