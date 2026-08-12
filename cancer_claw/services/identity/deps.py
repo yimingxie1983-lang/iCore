@@ -118,12 +118,13 @@ async def _load_project(project_id: str) -> dict[str, Any] | None:
 
     db = await get_read_db()
     cur = await db.execute(
-        "SELECT id, owner_id FROM projects WHERE id = ?", (project_id,)
+        "SELECT id, owner_id, COALESCE(status, 'active') FROM projects WHERE id = ?",
+        (project_id,),
     )
     row = await cur.fetchone()
     if not row:
         return None
-    return {"id": row[0], "owner_id": row[1]}
+    return {"id": row[0], "owner_id": row[1], "status": row[2]}
 
 async def compute_project_role(
     user: dict[str, Any], project_id: str
@@ -151,6 +152,8 @@ async def _resolve_access(
     if project is None or role is None:
         raise HTTPException(status_code=404, detail=f"项目 {project_id} 不存在")
 
+    if need in ("write", "manage") and project.get("status") == "frozen" and not is_admin(user):
+        raise HTTPException(status_code=403, detail="项目已冻结，仅管理员可操作")
     if need == "write" and role == "viewer":
         raise HTTPException(status_code=403, detail="只读成员无写入权限")
     if need == "manage" and role != "owner":
@@ -185,3 +188,14 @@ async def require_project_manage(
 ) -> ProjectContext:
 
     return await _resolve_access(project_id, user, need="manage")
+
+
+async def require_project_runnable(
+    project_id: str, user: dict[str, Any] = Depends(get_current_user)
+) -> ProjectContext:
+
+    ctx = await _resolve_access(project_id, user, need="write")
+    status = ctx["project"].get("status") or "active"
+    if status in ("paused", "frozen"):
+        raise HTTPException(status_code=403, detail="项目已暂停或冻结，无法发起新的运行")
+    return ctx
