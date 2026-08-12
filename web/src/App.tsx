@@ -15,6 +15,7 @@ import Login from './ui/views/Login'
 import Account from './ui/views/Account'
 import AdminUsers from './ui/views/admin/Users'
 import AdminRoles from './ui/views/admin/Roles'
+import AdminBilling from './ui/views/admin/Billing'
 import AdminEvolution from './ui/views/admin/Evolution'
 import AdminMonitor from './ui/views/admin/Monitor'
 import AdminAuthEvents from './ui/views/admin/AuthEvents'
@@ -131,6 +132,14 @@ function App() {
           element={
             <RequirePermission perm="role.manage">
               <AdminRoles />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="/admin/billing"
+          element={
+            <RequirePermission perm="billing.manage">
+              <AdminBilling />
             </RequirePermission>
           }
         />
