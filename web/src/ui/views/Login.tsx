@@ -229,6 +229,9 @@ export default function Login() {
       <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8">
         <div className="mb-6">
           <BrandHero brand={brand} size={96} />
+          <p className="mt-3 rounded-md border border-secondary/40 bg-secondary/10 px-3 py-2 text-center text-[12px] leading-relaxed text-secondary">
+            界面版本 0815-b：产出物只在「对话洞察」第四个 Tab，已去掉右侧悬浮窗
+          </p>
         </div>
 
         {showTabs && allowRegistration && (

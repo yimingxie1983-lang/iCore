@@ -1,6 +1,6 @@
 
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useDropzone } from 'react-dropzone'
@@ -14,10 +14,10 @@ import {
   ChevronsUpDown,
   Eraser,
   FileText,
-  Files,
   FolderOpen,
   Gauge,
   Loader2,
+  Package,
   PanelRightOpen,
   Paperclip,
   Plus,
@@ -36,11 +36,10 @@ import MessageList from './chat/MessageList'
 import EventTimeline from './chat/EventTimeline'
 import ReasoningPane from './chat/ReasoningPane'
 import StatsPanel from './chat/StatsPanel'
+import ArtifactsPane from './chat/ArtifactsPane'
 import PersonaSwitcher from './chat/PersonaSwitcher'
 import SessionsSidebar from './chat/SessionsSidebar'
 import GlobalTraceDrawer from './chat/steps/_shared/GlobalTraceDrawer'
-import ArtifactsDock, { readArtifactsDockOpen } from './chat/ArtifactsDock'
-import { collectConversationArtifacts } from '@/shared/helpers/conversationArtifacts'
 
 import { Button } from '@/ui/widgets/ui/button'
 import { Textarea } from '@/ui/widgets/ui/textarea'
@@ -395,7 +394,6 @@ export default function ChatWorkbench() {
   const [input, setInput] = useState('')
   const [createOpen, setCreateOpen] = useState(false)
   const [insightsOpen, setInsightsOpen] = useState(false)
-  const [artifactsOpen, setArtifactsOpen] = useState(readArtifactsDockOpen)
   const abortRef = useRef<Map<string | null, AbortController>>(new Map())
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
@@ -526,15 +524,6 @@ export default function ChatWorkbench() {
   const ingestEvent = useChatStore((s) => s.ingestEvent)
   const resetTurn = useChatStore((s) => s.resetTurn)
   const clearAll = useChatStore((s) => s.clearAll)
-
-  const artifactCounts = useMemo(() => {
-    const { submissions, artifacts } = collectConversationArtifacts(messages)
-    return {
-      submissions: submissions.length,
-      artifacts: artifacts.length,
-      total: submissions.length + artifacts.length,
-    }
-  }, [messages])
 
   const { data: projects } = useQuery({
     queryKey: ['projects'],
@@ -751,30 +740,6 @@ export default function ChatWorkbench() {
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
-              variant={artifactsOpen ? 'secondary' : 'ghost'}
-              size="icon-sm"
-              onClick={() => setArtifactsOpen((v) => !v)}
-              disabled={noProjectSelected}
-              className="relative"
-            >
-              <Files />
-              {artifactCounts.total > 0 && (
-                <span className="absolute -right-0.5 -top-0.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-secondary px-0.5 text-[9px] font-semibold text-secondary-foreground">
-                  {artifactCounts.total > 99 ? '99+' : artifactCounts.total}
-                </span>
-              )}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            {artifactsOpen
-              ? '收起提交物 / 产出物'
-              : `查看提交物 ${artifactCounts.submissions} · 产出物 ${artifactCounts.artifacts}`}
-          </TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
               variant="ghost"
               size="icon-sm"
               onClick={() => setInsightsOpen(true)}
@@ -783,7 +748,7 @@ export default function ChatWorkbench() {
               <PanelRightOpen />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>查看链路监控 + Token 计费</TooltipContent>
+          <TooltipContent>对话洞察：推理、链路、Token、产出物</TooltipContent>
         </Tooltip>
 
         <Tooltip>
@@ -817,19 +782,7 @@ export default function ChatWorkbench() {
 
           <div className="flex min-h-0 flex-1 flex-col">
           {}
-          <div className="relative flex min-h-0 flex-1 flex-col">
-            <MessageList
-              messages={messages}
-              streaming={streaming}
-              reserveRight={artifactsOpen}
-            />
-            <ArtifactsDock
-              projectId={projectId}
-              messages={messages}
-              open={artifactsOpen}
-              onOpenChange={setArtifactsOpen}
-            />
-          </div>
+          <MessageList messages={messages} streaming={streaming} />
 
           {}
           <div className="shrink-0 border-t border-border bg-card/80 px-4 py-3 backdrop-blur sm:px-8 sm:pb-5">
@@ -1021,30 +974,34 @@ export default function ChatWorkbench() {
 
       {}
       <Sheet open={insightsOpen} onOpenChange={setInsightsOpen}>
-        <SheetContent side="right" className="flex w-full flex-col p-0 sm:max-w-md">
+        <SheetContent side="right" className="flex w-full flex-col p-0 sm:max-w-lg">
           <SheetHeader className="border-b border-border pb-3">
             <SheetTitle>对话洞察</SheetTitle>
             <SheetDescription>
-              链路监控与 Token 计费实时同步，发送消息时自动刷新
+              推理、链路、Token 计费与会话产出物实时同步
             </SheetDescription>
           </SheetHeader>
           {}
           <Tabs defaultValue="reasoning" className="flex min-h-0 flex-1 flex-col">
-            <TabsList className="mx-5 mt-3 grid grid-cols-3">
-              <TabsTrigger value="reasoning" className="gap-1.5">
+            <TabsList className="mx-4 mt-3 grid h-auto grid-cols-4 gap-1 p-1">
+              <TabsTrigger value="reasoning" className="gap-1 px-1.5 text-xs">
                 <Brain className="h-3.5 w-3.5" />
-                推理过程
+                推理
               </TabsTrigger>
-              <TabsTrigger value="timeline" className="gap-1.5">
+              <TabsTrigger value="timeline" className="gap-1 px-1.5 text-xs">
                 <Activity className="h-3.5 w-3.5" />
-                链路监控
-                <span className="ml-1 rounded-full bg-muted px-1.5 text-[10px] text-muted-foreground">
+                链路
+                <span className="rounded-full bg-muted px-1.5 text-[10px] text-muted-foreground">
                   {events.length}
                 </span>
               </TabsTrigger>
-              <TabsTrigger value="stats" className="gap-1.5">
+              <TabsTrigger value="stats" className="gap-1 px-1.5 text-xs">
                 <Gauge className="h-3.5 w-3.5" />
-                Token 统计
+                Token
+              </TabsTrigger>
+              <TabsTrigger value="artifacts" className="gap-1 px-1.5 text-xs">
+                <Package className="h-3.5 w-3.5" />
+                产出物
               </TabsTrigger>
             </TabsList>
             <TabsContent value="reasoning" className="min-h-0 flex-1 overflow-hidden px-4 pb-4">
@@ -1055,6 +1012,9 @@ export default function ChatWorkbench() {
             </TabsContent>
             <TabsContent value="stats" className="min-h-0 flex-1 overflow-y-auto px-5 pb-4">
               <StatsPanel stats={stats} streaming={streaming} />
+            </TabsContent>
+            <TabsContent value="artifacts" className="min-h-0 flex-1 overflow-hidden px-4 pb-4">
+              <ArtifactsPane messages={messages} />
             </TabsContent>
           </Tabs>
         </SheetContent>

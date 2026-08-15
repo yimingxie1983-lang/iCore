@@ -1,6 +1,6 @@
 
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
   CheckCircle2,
   Coins,
@@ -19,11 +19,9 @@ import type { ChatMessage } from '@/application/state/chatStore'
 import { api } from '@/client/services/client'
 import { Badge } from '@/ui/widgets/ui/badge'
 import { useSessionsStore } from '@/application/state/sessionsStore'
-import { collectPresentations } from '@/shared/helpers/conversationArtifacts'
 import { cn } from '@/shared/foundation/utils'
 import TurnSteps from './TurnSteps'
 import TypewriterMarkdown from '@/ui/widgets/common/TypewriterMarkdown'
-import { PresentedFileGroup } from '@/ui/widgets/common/PresentedFileCard'
 
 interface Props {
   message: ChatMessage
@@ -259,9 +257,6 @@ function AssistantMessage({ message }: { message: ChatMessage }) {
   const showFinalReplyCard = message.streaming || hasText
   const showWaitingFinal = message.streaming && !hasText
 
-  const projectId = useSessionsStore((s) => s.projectId)
-  const presentations = useMemo(() => collectPresentations(message), [message])
-
   const showStats =
     !message.streaming &&
     message.stats &&
@@ -345,18 +340,6 @@ function AssistantMessage({ message }: { message: ChatMessage }) {
             {message.errorText ? ` · ${message.errorText}` : ''}
           </div>
         )}
-
-        {}
-        {projectId &&
-          presentations.map((p, i) => (
-            <PresentedFileGroup
-              key={`present-${i}`}
-              projectId={projectId}
-              title={p.title}
-              description={p.description}
-              files={p.files}
-            />
-          ))}
 
         {}
         {showStats && message.stats && (
