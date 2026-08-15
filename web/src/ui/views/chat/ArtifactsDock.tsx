@@ -58,6 +58,7 @@ export default function ArtifactsDock({
 
   return (
     <aside
+      data-icore-dock="split-110"
       className={cn(
         'absolute right-3 top-3 z-20 flex w-[110px] max-w-[calc(100%-1.5rem)]',
         'h-[min(40vh,320px)] flex-col overflow-hidden rounded-lg border border-border bg-card shadow-card',

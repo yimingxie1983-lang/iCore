@@ -784,6 +784,7 @@ export default function ChatWorkbench() {
       </div>
 
       {}
+      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
       {noProjectSelected ? (
         <div className="min-h-0 flex-1 overflow-y-auto">
           <ChatWorkbenchEmpty
@@ -801,12 +802,6 @@ export default function ChatWorkbench() {
           {}
           <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
             <MessageList messages={messages} streaming={streaming} />
-            <ArtifactsDock
-              projectId={projectId}
-              messages={messages}
-              open={artifactsOpen}
-              onOpenChange={setArtifactsOpen}
-            />
           </div>
 
           {}
@@ -993,6 +988,13 @@ export default function ChatWorkbench() {
           </div>
         </div>
       )}
+      <ArtifactsDock
+        projectId={projectId}
+        messages={messages}
+        open={artifactsOpen}
+        onOpenChange={setArtifactsOpen}
+      />
+      </div>
 
       {}
       <CreateProjectDialog open={createOpen} onOpenChange={setCreateOpen} />
