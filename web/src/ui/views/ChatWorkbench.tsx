@@ -14,7 +14,6 @@ import {
   ChevronsUpDown,
   Eraser,
   FileText,
-  Files,
   FolderOpen,
   Gauge,
   Loader2,
@@ -39,7 +38,6 @@ import StatsPanel from './chat/StatsPanel'
 import PersonaSwitcher from './chat/PersonaSwitcher'
 import SessionsSidebar from './chat/SessionsSidebar'
 import GlobalTraceDrawer from './chat/steps/_shared/GlobalTraceDrawer'
-import ArtifactsDock from './chat/ArtifactsDock'
 
 import { Button } from '@/ui/widgets/ui/button'
 import { Textarea } from '@/ui/widgets/ui/textarea'
@@ -394,7 +392,6 @@ export default function ChatWorkbench() {
   const [input, setInput] = useState('')
   const [createOpen, setCreateOpen] = useState(false)
   const [insightsOpen, setInsightsOpen] = useState(false)
-  const [artifactsOpen, setArtifactsOpen] = useState(true)
   const abortRef = useRef<Map<string | null, AbortController>>(new Map())
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
@@ -702,7 +699,7 @@ export default function ChatWorkbench() {
     <div
       {...getRootProps({
         className:
-          'relative flex min-h-0 min-w-0 flex-1 flex-col bg-background outline-none',
+          'relative flex min-h-0 flex-1 flex-col bg-background outline-none',
       })}
     >
       {}
@@ -741,22 +738,6 @@ export default function ChatWorkbench() {
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
-              variant={artifactsOpen ? 'secondary' : 'ghost'}
-              size="icon-sm"
-              onClick={() => setArtifactsOpen((v) => !v)}
-              disabled={noProjectSelected}
-            >
-              <Files />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            {artifactsOpen ? '收起提交物 / 产出物' : '查看提交物 / 产出物'}
-          </TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
               variant="ghost"
               size="icon-sm"
               onClick={() => setInsightsOpen(true)}
@@ -784,7 +765,6 @@ export default function ChatWorkbench() {
       </div>
 
       {}
-      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
       {noProjectSelected ? (
         <div className="min-h-0 flex-1 overflow-y-auto">
           <ChatWorkbenchEmpty
@@ -794,15 +774,13 @@ export default function ChatWorkbench() {
           />
         </div>
       ) : (
-        <div className="flex min-h-0 min-w-0 flex-1 flex-row">
+        <div className="flex min-h-0 flex-1 flex-row">
           {}
           <SessionsSidebar projectId={projectId} />
 
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <div className="flex min-h-0 flex-1 flex-col">
           {}
-          <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
-            <MessageList messages={messages} streaming={streaming} />
-          </div>
+          <MessageList messages={messages} streaming={streaming} />
 
           {}
           <div className="shrink-0 border-t border-border bg-card/80 px-4 py-3 backdrop-blur sm:px-8 sm:pb-5">
@@ -988,13 +966,6 @@ export default function ChatWorkbench() {
           </div>
         </div>
       )}
-      <ArtifactsDock
-        projectId={projectId}
-        messages={messages}
-        open={artifactsOpen}
-        onOpenChange={setArtifactsOpen}
-      />
-      </div>
 
       {}
       <CreateProjectDialog open={createOpen} onOpenChange={setCreateOpen} />
