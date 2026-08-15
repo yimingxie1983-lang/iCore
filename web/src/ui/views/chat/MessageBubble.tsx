@@ -1,6 +1,6 @@
 
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
   CheckCircle2,
   Coins,
@@ -16,13 +16,12 @@ import {
 } from 'lucide-react'
 
 import type { ChatMessage } from '@/application/state/chatStore'
-import { api, type FilePresentation } from '@/client/services/client'
+import { api } from '@/client/services/client'
 import { Badge } from '@/ui/widgets/ui/badge'
 import { useSessionsStore } from '@/application/state/sessionsStore'
 import { cn } from '@/shared/foundation/utils'
 import TurnSteps from './TurnSteps'
 import TypewriterMarkdown from '@/ui/widgets/common/TypewriterMarkdown'
-import { PresentedFileGroup } from '@/ui/widgets/common/PresentedFileCard'
 
 interface Props {
   message: ChatMessage
@@ -50,31 +49,6 @@ function fmtElapsedSeconds(ms: number): string {
   if (ms < 0) ms = 0
 
   return `${(ms / 1000).toFixed(1)}s`
-}
-
-function extractPresentation(data: unknown): FilePresentation | null {
-  if (!data || typeof data !== 'object') return null
-  const p = (data as { presentation?: unknown }).presentation
-  if (!p || typeof p !== 'object') return null
-  const cast = p as Partial<FilePresentation>
-  if (cast.kind !== 'files') return null
-  if (!Array.isArray(cast.files) || cast.files.length === 0) return null
-  return cast as FilePresentation
-}
-
-function collectPresentations(message: ChatMessage): FilePresentation[] {
-
-  const fromSteps: FilePresentation[] = []
-  for (const step of message.steps || []) {
-    if (step.kind !== 'tool') continue
-    if (step.tool !== 'present_file') continue
-    if (step.status !== 'success') continue
-    const p = extractPresentation(step.data)
-    if (p) fromSteps.push(p)
-  }
-  if (fromSteps.length > 0) return fromSteps
-
-  return message.presentedFiles || []
 }
 
 function useRelativeNow(intervalMs: number, enabled: boolean): number {
@@ -283,9 +257,6 @@ function AssistantMessage({ message }: { message: ChatMessage }) {
   const showFinalReplyCard = message.streaming || hasText
   const showWaitingFinal = message.streaming && !hasText
 
-  const projectId = useSessionsStore((s) => s.projectId)
-  const presentations = useMemo(() => collectPresentations(message), [message])
-
   const showStats =
     !message.streaming &&
     message.stats &&
@@ -369,18 +340,6 @@ function AssistantMessage({ message }: { message: ChatMessage }) {
             {message.errorText ? ` · ${message.errorText}` : ''}
           </div>
         )}
-
-        {}
-        {projectId &&
-          presentations.map((p, i) => (
-            <PresentedFileGroup
-              key={`present-${i}`}
-              projectId={projectId}
-              title={p.title}
-              description={p.description}
-              files={p.files}
-            />
-          ))}
 
         {}
         {showStats && message.stats && (
