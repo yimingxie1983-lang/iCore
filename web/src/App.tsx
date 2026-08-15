@@ -12,6 +12,7 @@ import Memory from './ui/views/Memory'
 import Skills from './ui/views/Skills'
 import Credits from './ui/views/Credits'
 import Login from './ui/views/Login'
+import ArtifactsDockPreview from './ui/views/chat/ArtifactsDockPreview'
 import Account from './ui/views/Account'
 import AdminUsers from './ui/views/admin/Users'
 import AdminRoles from './ui/views/admin/Roles'
@@ -92,6 +93,9 @@ function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      {import.meta.env.DEV && (
+        <Route path="/__preview/artifacts-dock" element={<ArtifactsDockPreview />} />
+      )}
 
       <Route
         element={
