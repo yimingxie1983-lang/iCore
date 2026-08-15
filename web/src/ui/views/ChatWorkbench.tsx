@@ -1,6 +1,6 @@
 
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useDropzone } from 'react-dropzone'
@@ -14,6 +14,7 @@ import {
   ChevronsUpDown,
   Eraser,
   FileText,
+  Files,
   FolderOpen,
   Gauge,
   Loader2,
@@ -38,6 +39,8 @@ import StatsPanel from './chat/StatsPanel'
 import PersonaSwitcher from './chat/PersonaSwitcher'
 import SessionsSidebar from './chat/SessionsSidebar'
 import GlobalTraceDrawer from './chat/steps/_shared/GlobalTraceDrawer'
+import ArtifactsDock, { readArtifactsDockOpen } from './chat/ArtifactsDock'
+import { collectConversationArtifacts } from '@/shared/helpers/conversationArtifacts'
 
 import { Button } from '@/ui/widgets/ui/button'
 import { Textarea } from '@/ui/widgets/ui/textarea'
@@ -392,6 +395,7 @@ export default function ChatWorkbench() {
   const [input, setInput] = useState('')
   const [createOpen, setCreateOpen] = useState(false)
   const [insightsOpen, setInsightsOpen] = useState(false)
+  const [artifactsOpen, setArtifactsOpen] = useState(readArtifactsDockOpen)
   const abortRef = useRef<Map<string | null, AbortController>>(new Map())
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
@@ -522,6 +526,15 @@ export default function ChatWorkbench() {
   const ingestEvent = useChatStore((s) => s.ingestEvent)
   const resetTurn = useChatStore((s) => s.resetTurn)
   const clearAll = useChatStore((s) => s.clearAll)
+
+  const artifactCounts = useMemo(() => {
+    const { submissions, artifacts } = collectConversationArtifacts(messages)
+    return {
+      submissions: submissions.length,
+      artifacts: artifacts.length,
+      total: submissions.length + artifacts.length,
+    }
+  }, [messages])
 
   const { data: projects } = useQuery({
     queryKey: ['projects'],
@@ -738,6 +751,30 @@ export default function ChatWorkbench() {
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
+              variant={artifactsOpen ? 'secondary' : 'ghost'}
+              size="icon-sm"
+              onClick={() => setArtifactsOpen((v) => !v)}
+              disabled={noProjectSelected}
+              className="relative"
+            >
+              <Files />
+              {artifactCounts.total > 0 && (
+                <span className="absolute -right-0.5 -top-0.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-secondary px-0.5 text-[9px] font-semibold text-secondary-foreground">
+                  {artifactCounts.total > 99 ? '99+' : artifactCounts.total}
+                </span>
+              )}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            {artifactsOpen
+              ? '收起提交物 / 产出物'
+              : `查看提交物 ${artifactCounts.submissions} · 产出物 ${artifactCounts.artifacts}`}
+          </TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
               variant="ghost"
               size="icon-sm"
               onClick={() => setInsightsOpen(true)}
@@ -780,7 +817,19 @@ export default function ChatWorkbench() {
 
           <div className="flex min-h-0 flex-1 flex-col">
           {}
-          <MessageList messages={messages} streaming={streaming} />
+          <div className="relative flex min-h-0 flex-1 flex-col">
+            <MessageList
+              messages={messages}
+              streaming={streaming}
+              reserveRight={artifactsOpen}
+            />
+            <ArtifactsDock
+              projectId={projectId}
+              messages={messages}
+              open={artifactsOpen}
+              onOpenChange={setArtifactsOpen}
+            />
+          </div>
 
           {}
           <div className="shrink-0 border-t border-border bg-card/80 px-4 py-3 backdrop-blur sm:px-8 sm:pb-5">

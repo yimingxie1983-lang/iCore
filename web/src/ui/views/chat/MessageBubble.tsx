@@ -16,9 +16,10 @@ import {
 } from 'lucide-react'
 
 import type { ChatMessage } from '@/application/state/chatStore'
-import { api, type FilePresentation } from '@/client/services/client'
+import { api } from '@/client/services/client'
 import { Badge } from '@/ui/widgets/ui/badge'
 import { useSessionsStore } from '@/application/state/sessionsStore'
+import { collectPresentations } from '@/shared/helpers/conversationArtifacts'
 import { cn } from '@/shared/foundation/utils'
 import TurnSteps from './TurnSteps'
 import TypewriterMarkdown from '@/ui/widgets/common/TypewriterMarkdown'
@@ -50,31 +51,6 @@ function fmtElapsedSeconds(ms: number): string {
   if (ms < 0) ms = 0
 
   return `${(ms / 1000).toFixed(1)}s`
-}
-
-function extractPresentation(data: unknown): FilePresentation | null {
-  if (!data || typeof data !== 'object') return null
-  const p = (data as { presentation?: unknown }).presentation
-  if (!p || typeof p !== 'object') return null
-  const cast = p as Partial<FilePresentation>
-  if (cast.kind !== 'files') return null
-  if (!Array.isArray(cast.files) || cast.files.length === 0) return null
-  return cast as FilePresentation
-}
-
-function collectPresentations(message: ChatMessage): FilePresentation[] {
-
-  const fromSteps: FilePresentation[] = []
-  for (const step of message.steps || []) {
-    if (step.kind !== 'tool') continue
-    if (step.tool !== 'present_file') continue
-    if (step.status !== 'success') continue
-    const p = extractPresentation(step.data)
-    if (p) fromSteps.push(p)
-  }
-  if (fromSteps.length > 0) return fromSteps
-
-  return message.presentedFiles || []
 }
 
 function useRelativeNow(intervalMs: number, enabled: boolean): number {
@@ -165,7 +141,7 @@ function UserMessage({ message }: { message: ChatMessage }) {
   const files = attachments.filter((a) => a.kind !== 'image')
 
   return (
-    <div className="flex flex-row-reverse gap-3">
+    <div id={`msg-${message.id}`} className="flex scroll-mt-4 flex-row-reverse gap-3">
       <UserAvatar />
       <div className="flex max-w-[82%] min-w-[120px] flex-col items-end gap-1.5">
         <div className="flex items-center gap-1.5 text-[10.5px] text-muted-foreground/70">
@@ -302,7 +278,7 @@ function AssistantMessage({ message }: { message: ChatMessage }) {
         : 'text-foreground'
 
   return (
-    <div className="flex gap-3">
+    <div id={`msg-${message.id}`} className="flex scroll-mt-4 gap-3">
       <AssistantAvatar streaming={message.streaming} />
       <div ref={bodyRef} className="flex min-w-[120px] max-w-[88%] flex-1 flex-col gap-2">
         {}
