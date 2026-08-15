@@ -14,6 +14,7 @@ import { cn } from '@/shared/foundation/utils'
 const STORAGE_KEY = 'icore.chat.artifactsDock.open'
 const GAP = 12
 const PANEL_WIDTH = 110
+const DOCK_HOST_ID = 'icore-artifacts-dock'
 
 function FileName({
   projectId,
@@ -79,7 +80,7 @@ function HalfPane({
   )
 }
 
-function useClampedBox(anchorRef: RefObject<HTMLElement | null>) {
+function useClampedBox(anchorRef: RefObject<HTMLElement | null>, open: boolean) {
   const [box, setBox] = useState({ top: GAP, right: GAP, width: PANEL_WIDTH, height: 280 })
 
   useLayoutEffect(() => {
@@ -104,9 +105,12 @@ function useClampedBox(anchorRef: RefObject<HTMLElement | null>) {
       window.removeEventListener('scroll', place, true)
       ro?.disconnect()
     }
-  }, [anchorRef])
+  }, [anchorRef, open])
 
-  return box
+  return {
+    ...box,
+    width: Math.min(box.width, PANEL_WIDTH),
+  }
 }
 
 interface Props {
@@ -128,7 +132,21 @@ export default function ArtifactsDock({
   )
   const total = submissions.length + artifacts.length
   const anchorRef = useRef<HTMLDivElement>(null)
-  const box = useClampedBox(anchorRef)
+  const box = useClampedBox(anchorRef, open)
+  const [host, setHost] = useState<HTMLElement | null>(null)
+
+  useEffect(() => {
+    const existing = document.getElementById(DOCK_HOST_ID)
+    if (existing) existing.remove()
+    const el = document.createElement('div')
+    el.id = DOCK_HOST_ID
+    document.body.appendChild(el)
+    setHost(el)
+    return () => {
+      el.remove()
+      setHost(null)
+    }
+  }, [])
 
   useEffect(() => {
     try {
@@ -206,7 +224,7 @@ export default function ArtifactsDock({
         className="pointer-events-none absolute right-0 top-0 h-px w-px"
         aria-hidden
       />
-      {createPortal(dock, document.body)}
+      {host ? createPortal(dock, host) : null}
     </>
   )
 }
