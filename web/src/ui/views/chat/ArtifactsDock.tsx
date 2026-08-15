@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react'
+import { createPortal } from 'react-dom'
 import { Download, Files, Loader2, PanelRightClose, Upload, Package } from 'lucide-react'
 
 import type { ChatMessage } from '@/application/state/chatStore'
@@ -11,6 +12,8 @@ import { Button } from '@/ui/widgets/ui/button'
 import { cn } from '@/shared/foundation/utils'
 
 const STORAGE_KEY = 'icore.chat.artifactsDock.open'
+const GAP = 12
+const PANEL_WIDTH = 220
 
 function DownloadRow({
   projectId,
@@ -100,6 +103,36 @@ function FileSection({
   )
 }
 
+function useClampedBox(anchorRef: RefObject<HTMLElement | null>) {
+  const [box, setBox] = useState({ top: GAP, right: GAP, width: PANEL_WIDTH, maxHeight: 280 })
+
+  useLayoutEffect(() => {
+    const place = () => {
+      const vw = window.innerWidth
+      const vh = window.innerHeight
+      const rect = anchorRef.current?.getBoundingClientRect()
+      const right = rect ? Math.max(GAP, Math.round(vw - rect.right + GAP)) : GAP
+      const width = Math.min(PANEL_WIDTH, Math.max(148, vw - right - GAP))
+      const top = rect ? Math.max(GAP, Math.round(rect.top + GAP)) : GAP
+      const maxHeight = Math.max(96, Math.min(Math.round(vh * 0.4), vh - top - GAP))
+      setBox({ top, right, width, maxHeight })
+    }
+    place()
+    window.addEventListener('resize', place)
+    window.addEventListener('scroll', place, true)
+    const node = anchorRef.current?.parentElement ?? anchorRef.current
+    const ro = node ? new ResizeObserver(place) : null
+    if (node) ro?.observe(node)
+    return () => {
+      window.removeEventListener('resize', place)
+      window.removeEventListener('scroll', place, true)
+      ro?.disconnect()
+    }
+  }, [anchorRef])
+
+  return box
+}
+
 interface Props {
   projectId: string
   messages: ChatMessage[]
@@ -118,6 +151,8 @@ export default function ArtifactsDock({
     [messages],
   )
   const total = submissions.length + artifacts.length
+  const anchorRef = useRef<HTMLDivElement>(null)
+  const box = useClampedBox(anchorRef)
 
   useEffect(() => {
     try {
@@ -127,33 +162,17 @@ export default function ArtifactsDock({
     }
   }, [open])
 
-  if (!open) {
-    return (
-      <button
-        type="button"
-        onClick={() => onOpenChange(true)}
-        className={cn(
-          'absolute right-3 top-3 z-20 inline-flex items-center gap-1 rounded-full border border-border bg-card/95 px-2 py-1 text-[11px] font-medium shadow-card backdrop-blur',
-          total > 0
-            ? 'text-foreground hover:border-secondary/40 hover:text-secondary'
-            : 'text-muted-foreground hover:text-foreground',
-        )}
-        title="查看提交物与产出物"
-      >
-        <Files className="h-3.5 w-3.5" />
-        产物
-        {total > 0 && (
-          <span className="min-w-[1rem] rounded-full bg-muted px-1 text-center text-[10px] tabular-nums text-muted-foreground">
-            {total}
-          </span>
-        )}
-      </button>
-    )
-  }
-
-  return (
+  const dock = open ? (
     <aside
-      className="absolute right-3 top-3 z-20 flex w-[220px] max-h-[40vh] flex-col overflow-hidden rounded-xl border border-border bg-card/95 shadow-card backdrop-blur"
+      className="flex flex-col overflow-hidden rounded-xl border border-border bg-card/95 shadow-pop backdrop-blur"
+      style={{
+        position: 'fixed',
+        top: box.top,
+        right: box.right,
+        width: box.width,
+        maxHeight: box.maxHeight,
+        zIndex: 40,
+      }}
       aria-label="会话产物"
     >
       <div className="flex shrink-0 items-center gap-1 border-b border-border px-2 py-1">
@@ -195,6 +214,43 @@ export default function ArtifactsDock({
         )}
       </div>
     </aside>
+  ) : (
+    <button
+      type="button"
+      onClick={() => onOpenChange(true)}
+      className={cn(
+        'inline-flex items-center gap-1 rounded-full border border-border bg-card/95 px-2 py-1 text-[11px] font-medium shadow-card backdrop-blur',
+        total > 0
+          ? 'text-foreground hover:border-secondary/40 hover:text-secondary'
+          : 'text-muted-foreground hover:text-foreground',
+      )}
+      style={{
+        position: 'fixed',
+        top: box.top,
+        right: box.right,
+        zIndex: 40,
+      }}
+      title="查看提交物与产出物"
+    >
+      <Files className="h-3.5 w-3.5" />
+      产物
+      {total > 0 && (
+        <span className="min-w-[1rem] rounded-full bg-muted px-1 text-center text-[10px] tabular-nums text-muted-foreground">
+          {total}
+        </span>
+      )}
+    </button>
+  )
+
+  return (
+    <>
+      <div
+        ref={anchorRef}
+        className="pointer-events-none absolute right-0 top-0 h-px w-px"
+        aria-hidden
+      />
+      {createPortal(dock, document.body)}
+    </>
   )
 }
 

@@ -702,7 +702,7 @@ export default function ChatWorkbench() {
     <div
       {...getRootProps({
         className:
-          'relative flex min-h-0 flex-1 flex-col bg-background outline-none',
+          'relative flex min-h-0 min-w-0 flex-1 flex-col bg-background outline-none',
       })}
     >
       {}
@@ -793,13 +793,13 @@ export default function ChatWorkbench() {
           />
         </div>
       ) : (
-        <div className="flex min-h-0 flex-1 flex-row">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-row">
           {}
           <SessionsSidebar projectId={projectId} />
 
-          <div className="flex min-h-0 flex-1 flex-col">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           {}
-          <div className="relative flex min-h-0 flex-1 flex-col">
+          <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
             <MessageList messages={messages} streaming={streaming} />
             <ArtifactsDock
               projectId={projectId}
