@@ -21,6 +21,7 @@ interface Props {
 
   streaming?: boolean
   className?: string
+  reserveRight?: boolean
 }
 
 const FOLLOW_THRESHOLD_PX = 100
@@ -94,7 +95,7 @@ function EmptyState() {
   )
 }
 
-export default function MessageList({ messages, streaming, className }: Props) {
+export default function MessageList({ messages, streaming, className, reserveRight }: Props) {
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const [following, setFollowing] = useState(true)
 
@@ -175,7 +176,10 @@ export default function MessageList({ messages, streaming, className }: Props) {
     >
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto scroll-smooth px-4 py-6 sm:px-8"
+        className={cn(
+          'flex-1 overflow-y-auto scroll-smooth px-4 py-6 sm:px-8',
+          reserveRight && 'lg:pr-[400px]',
+        )}
       >
         {messages.length === 0 ? (
           <EmptyState />
