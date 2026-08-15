@@ -56,7 +56,7 @@ interface NavGroup {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { to: '/chat', label: '对话工作台', icon: MessageSquare, desc: '链路 + token 计费', perm: 'menu.chat' },
+  { to: '/chat', label: '对话工作台', icon: MessageSquare, desc: '推理 / 链路 / Token / 产出物', perm: 'menu.chat' },
   { to: '/projects', label: '项目', icon: FolderOpen, desc: '工作区 + 记忆', perm: 'menu.projects' },
   { to: '/agents', label: '智能体', icon: Bot, desc: 'soul + 人格库', perm: 'menu.agents' },
   { to: '/skills', label: '技能库', icon: Library, desc: 'SKILL.md 生态 / 拖拽上传', perm: 'menu.skills' },

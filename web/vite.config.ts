@@ -33,6 +33,9 @@ export default defineConfig({
     port: 5180,
     // 端口被占时直接报错退出，不静默换端口（避免日志里的 url 与文档对不上）
     strictPort: true,
+    headers: {
+      'Cache-Control': 'no-store',
+    },
     // 把 /api 与 SSE 流转发到 FastAPI 后端（默认 :8000）
     proxy: {
       '/api': {
