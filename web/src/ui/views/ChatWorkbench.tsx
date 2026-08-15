@@ -39,7 +39,7 @@ import StatsPanel from './chat/StatsPanel'
 import PersonaSwitcher from './chat/PersonaSwitcher'
 import SessionsSidebar from './chat/SessionsSidebar'
 import GlobalTraceDrawer from './chat/steps/_shared/GlobalTraceDrawer'
-import ArtifactsDock, { readArtifactsDockOpen } from './chat/ArtifactsDock'
+import ArtifactsDock from './chat/ArtifactsDock'
 
 import { Button } from '@/ui/widgets/ui/button'
 import { Textarea } from '@/ui/widgets/ui/textarea'
@@ -394,7 +394,7 @@ export default function ChatWorkbench() {
   const [input, setInput] = useState('')
   const [createOpen, setCreateOpen] = useState(false)
   const [insightsOpen, setInsightsOpen] = useState(false)
-  const [artifactsOpen, setArtifactsOpen] = useState(readArtifactsDockOpen)
+  const [artifactsOpen, setArtifactsOpen] = useState(true)
   const abortRef = useRef<Map<string | null, AbortController>>(new Map())
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
