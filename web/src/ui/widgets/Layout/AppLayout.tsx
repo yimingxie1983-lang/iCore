@@ -22,11 +22,14 @@ import {
   Sparkles,
   Users,
   Wallet,
+  Moon,
+  Sun,
   X,
 } from 'lucide-react'
 
-import { api } from '@/client/services/client'
+import { api, type Project } from '@/client/services/client'
 import { useAuthStore, checkPermission } from '@/application/state/authStore'
+import { useThemeStore } from '@/application/state/themeStore'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -57,11 +60,9 @@ interface NavGroup {
 
 const NAV_ITEMS: NavItem[] = [
   { to: '/chat', label: '对话工作台', icon: MessageSquare, desc: '链路 + token 计费', perm: 'menu.chat' },
-  { to: '/projects', label: '项目', icon: FolderOpen, desc: '工作区 + 记忆', perm: 'menu.projects' },
   { to: '/agents', label: '智能体', icon: Bot, desc: 'soul + 人格库', perm: 'menu.agents' },
   { to: '/skills', label: '技能库', icon: Library, desc: 'SKILL.md 生态 / 拖拽上传', perm: 'menu.skills' },
   { to: '/memory', label: '记忆库', icon: BrainCircuit, desc: '项目 / 经验簿', perm: 'menu.memory' },
-  { to: '/credits', label: '我的额度', icon: Wallet, desc: '积分余额 / 账单', perm: 'menu.credits' },
 ]
 
 const ADMIN_NAV_ITEMS: NavItem[] = [
@@ -124,6 +125,65 @@ function UserMenu() {
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+  )
+}
+
+function AdminMenu({ items }: { items: NavItem[] }) {
+  const nav = useNavigate()
+  const loc = useLocation()
+  if (items.length === 0) return null
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card py-1 pl-1.5 pr-2.5 text-[12px] font-medium text-foreground transition-colors hover:bg-muted"
+          title="系统管理"
+        >
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-muted text-muted-foreground">
+            <ShieldCheck className="h-3.5 w-3.5" />
+          </span>
+          <span className="hidden sm:inline">系统管理</span>
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuLabel>系统管理</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        {items.map((item) => {
+          const Icon = item.icon
+          const active = loc.pathname.startsWith(item.to)
+          return (
+            <DropdownMenuItem
+              key={item.to}
+              onClick={() => nav(item.to)}
+              className={cn(active && 'bg-muted font-medium')}
+            >
+              <Icon className="h-4 w-4" />
+              {item.label}
+            </DropdownMenuItem>
+          )
+        })}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+function ThemeToggle() {
+  const theme = useThemeStore((s) => s.theme)
+  const toggleTheme = useThemeStore((s) => s.toggleTheme)
+  const dark = theme === 'dark'
+
+  return (
+    <button
+      type="button"
+      onClick={toggleTheme}
+      title={dark ? '切换到日间模式' : '切换到夜间模式'}
+      aria-label={dark ? '切换到日间模式' : '切换到夜间模式'}
+      className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border bg-card text-foreground shadow-sm transition-colors hover:bg-muted"
+    >
+      {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+    </button>
   )
 }
 
@@ -248,6 +308,140 @@ function NavRow({ item, onNavigate }: { item: NavItem; onNavigate?: () => void }
   )
 }
 
+const PROJECTS_GROUP_KEY = 'icore:sidebar:group:projects'
+
+function ProjectsNavSection({
+  activePath,
+  onNavigate,
+}: {
+  activePath: string
+  onNavigate?: () => void
+}) {
+  const user = useAuthStore((s) => s.user)
+  const canSee = checkPermission(user, 'menu.projects')
+  const { data, isLoading } = useQuery({
+    queryKey: ['projects'],
+    queryFn: () => api.listProjects(),
+    enabled: canSee,
+    staleTime: 15_000,
+  })
+  const [open, setOpen] = useState(() => {
+    try {
+      return localStorage.getItem(PROJECTS_GROUP_KEY) !== '0'
+    } catch {
+      return true
+    }
+  })
+
+  const projects = (data?.items || [])
+    .filter((p: Project) => Boolean(user?.id) && p.owner_id === user?.id)
+    .slice()
+    .sort((a: Project, b: Project) =>
+      String(b.updated_at || '').localeCompare(String(a.updated_at || '')),
+    )
+  const chatMatch = activePath.match(/^\/chat\/([^/]+)/)
+  const activeProjectId = chatMatch?.[1] || ''
+  const inProjectsArea =
+    activePath === '/projects' ||
+    activePath.startsWith('/projects/') ||
+    Boolean(activeProjectId)
+  const prevPathRef = useRef('')
+
+  useEffect(() => {
+    if (inProjectsArea && prevPathRef.current !== activePath) {
+      setOpen(true)
+    }
+    prevPathRef.current = activePath
+  }, [activePath, inProjectsArea])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(PROJECTS_GROUP_KEY, open ? '1' : '0')
+    } catch {
+      // 忽略存储不可用的情况
+    }
+  }, [open])
+
+  if (!canSee) return null
+
+  return (
+    <div className="pt-3 first:pt-0">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-controls="sidebar-group-projects"
+        className="flex w-full items-center justify-between rounded-md px-3 py-1.5 text-left transition-colors hover:bg-muted"
+      >
+        <span className="text-[15px] font-semibold tracking-wide text-sidebar-foreground">
+          项目
+        </span>
+        <ChevronDown
+          className={cn(
+            'h-4 w-4 shrink-0 text-sidebar-muted transition-transform duration-200',
+            !open && '-rotate-90',
+          )}
+        />
+      </button>
+      {open && (
+        <div id="sidebar-group-projects" className="mt-1 space-y-0.5">
+          {isLoading && (
+            <div className="px-3 py-2 text-[12px] text-sidebar-muted">加载项目…</div>
+          )}
+          {!isLoading && projects.length === 0 && (
+            <div className="px-3 py-2 text-[12px] text-sidebar-muted">还没有项目</div>
+          )}
+          {projects.map((p) => {
+            const active = activeProjectId === p.id
+            return (
+              <NavLink
+                key={p.id}
+                to={`/chat/${p.id}`}
+                onClick={onNavigate}
+                title={p.name}
+                className={cn(
+                  'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
+                  active
+                    ? 'bg-sidebar-active-bg text-sidebar-active-fg'
+                    : 'text-sidebar-foreground hover:bg-muted',
+                )}
+              >
+                <FolderOpen
+                  className={cn(
+                    'h-[18px] w-[18px] shrink-0',
+                    active ? 'text-sidebar-active-fg' : 'text-sidebar-muted',
+                  )}
+                />
+                <div className="min-w-0 flex-1">
+                  <div
+                    className={cn(
+                      'truncate text-[13px] leading-tight',
+                      active ? 'font-semibold' : 'font-medium',
+                    )}
+                  >
+                    {p.name}
+                  </div>
+                  {p.description ? (
+                    <div
+                      className={cn(
+                        'mt-0.5 truncate text-[10.5px] leading-tight',
+                        active ? 'text-sidebar-active-fg/70' : 'text-sidebar-muted',
+                      )}
+                    >
+                      {p.description}
+                    </div>
+                  ) : null}
+                </div>
+                {active && <span className="h-1.5 w-1.5 rounded-full bg-secondary" />}
+              </NavLink>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
 const SIDEBAR_GROUP_KEY = 'icore:sidebar:group:'
 
 function NavGroupSection({
@@ -294,12 +488,12 @@ function NavGroupSection({
         aria-controls={`sidebar-group-${group.id}`}
         className="flex w-full items-center justify-between rounded-md px-3 py-1.5 text-left transition-colors hover:bg-muted"
       >
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-muted">
+        <span className="text-[15px] font-semibold tracking-wide text-sidebar-foreground">
           {group.label}
         </span>
         <ChevronDown
           className={cn(
-            'h-3.5 w-3.5 shrink-0 text-sidebar-muted transition-transform duration-200',
+            'h-4 w-4 shrink-0 text-sidebar-muted transition-transform duration-200',
             !open && '-rotate-90',
           )}
         />
@@ -326,13 +520,12 @@ function SidebarBody({
 }) {
   const brand = useBrandVariant()
   return (
-    <>
-      {}
-      <div className="border-b border-sidebar-border px-4 py-4">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="shrink-0 border-b border-sidebar-border px-4 py-4">
         <BrandHeader brand={brand} size={52} />
       </div>
 
-      <nav className="flex-1 space-y-0.5 overflow-y-auto px-2 py-3">
+      <nav className="min-h-0 flex-1 space-y-0.5 overflow-y-auto overscroll-contain px-2 py-3">
         {groups.map((group) => (
           <NavGroupSection
             key={group.id}
@@ -341,14 +534,15 @@ function SidebarBody({
             onNavigate={onNavigate}
           />
         ))}
+        <ProjectsNavSection activePath={activePath} onNavigate={onNavigate} />
       </nav>
 
-      <div className="border-t border-sidebar-border px-5 py-3">
+      <div className="shrink-0 border-t border-sidebar-border px-5 py-3">
         <div className="text-[11px] text-sidebar-muted">
           <span>v0.1.0</span>
         </div>
       </div>
-    </>
+    </div>
   )
 }
 
@@ -391,16 +585,29 @@ export default function AppLayout() {
   )
   const groups: NavGroup[] = [
     ...(navItems.length > 0 ? [{ id: 'workspace', label: '工作区', items: navItems }] : []),
-    ...(adminItems.length > 0 ? [{ id: 'system', label: '系统管理', items: adminItems }] : []),
   ]
-  const currentItem = [...navItems, ...adminItems].find((i) =>
-    loc.pathname.startsWith(i.to),
-  )
+  const currentItem = loc.pathname.startsWith('/projects')
+    ? {
+        to: '/projects',
+        label: '项目',
+        desc: '工作区 + 记忆',
+        icon: FolderOpen,
+        perm: 'menu.projects',
+      }
+    : loc.pathname.startsWith('/credits')
+      ? {
+          to: '/credits',
+          label: '我的额度',
+          desc: '积分余额 / 账单',
+          icon: Wallet,
+          perm: 'menu.credits',
+        }
+      : [...navItems, ...adminItems].find((i) => loc.pathname.startsWith(i.to))
 
   return (
     <div className="flex h-screen min-h-0 bg-background">
       {}
-      <aside className="hidden w-72 shrink-0 flex-col border-r border-sidebar-border bg-sidebar lg:flex">
+      <aside className="hidden h-full min-h-0 w-72 shrink-0 flex-col overflow-hidden border-r border-sidebar-border bg-sidebar lg:flex">
         <SidebarBody groups={groups} activePath={loc.pathname} />
       </aside>
 
@@ -413,8 +620,8 @@ export default function AppLayout() {
             aria-label="关闭导航"
             onClick={() => setMobileNavOpen(false)}
           />
-          <aside className="absolute inset-y-0 left-0 flex w-[min(20rem,88vw)] flex-col bg-sidebar shadow-xl">
-            <div className="flex items-center justify-end border-b border-sidebar-border px-3 py-2">
+          <aside className="absolute inset-y-0 left-0 flex min-h-0 w-[min(20rem,88vw)] flex-col overflow-hidden bg-sidebar shadow-xl">
+            <div className="flex shrink-0 items-center justify-end border-b border-sidebar-border px-3 py-2">
               <button
                 type="button"
                 className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -468,6 +675,8 @@ export default function AppLayout() {
           <CreditsBadge />
           <HealthBadge />
           <UserMenu />
+          <AdminMenu items={adminItems} />
+          <ThemeToggle />
         </header>
 
         <main className="flex min-h-0 flex-1 flex-col overflow-hidden">

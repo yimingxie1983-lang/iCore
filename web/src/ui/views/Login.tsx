@@ -9,6 +9,8 @@ import { Input } from '@/ui/widgets/ui/input'
 import { Label } from '@/ui/widgets/ui/label'
 import { toast } from '@/ui/widgets/ui/sonner'
 import { BrandHero, useBrandVariant } from '@/ui/widgets/Layout/BrandMark'
+import LoginAtmosphere from './LoginAtmosphere'
+import LoginDna from './LoginDna'
 
 type Mode = 'login' | 'register' | 'forgot' | 'reset'
 
@@ -225,8 +227,13 @@ export default function Login() {
   const showTabs = mode !== 'reset'
 
   return (
-    <div className="flex h-screen items-center justify-center bg-background px-4">
-      <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8">
+    <div className="login-magic relative flex min-h-screen overflow-x-hidden">
+      <LoginAtmosphere />
+      <LoginDna />
+      <section className="relative z-10 ml-auto flex min-h-screen w-full items-center justify-center px-4 py-8 lg:mr-[12vw] lg:w-[min(520px,46vw)] lg:px-6">
+        <div className="w-full max-w-md">
+        <div className="login-card-shell">
+          <div className="login-card rounded-2xl p-6 sm:p-8">
         <div className="mb-6">
           <BrandHero brand={brand} size={96} />
         </div>
@@ -371,7 +378,7 @@ export default function Login() {
             </div>
           )}
 
-          <Button type="submit" className="w-full" disabled={submitting}>
+          <Button type="submit" className="login-submit w-full" disabled={submitting}>
             {submitting
               ? '请稍候…'
               : mode === 'login'
@@ -415,7 +422,10 @@ export default function Login() {
               : '本实例未开放自助注册，请联系管理员建号。'}
           </p>
         </div>
-      </div>
+          </div>
+        </div>
+        </div>
+      </section>
     </div>
   )
 }

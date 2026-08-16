@@ -152,3 +152,199 @@
     font-feature-settings: 'tnum';
   }
 }
+
+/* 登录页魔幻氛围：仅作用于 /login，不影响工作台 */
+.login-magic {
+  background:
+    radial-gradient(ellipse 80% 55% at 50% -10%, rgba(56, 189, 248, 0.22), transparent 55%),
+    radial-gradient(ellipse 70% 50% at 100% 100%, rgba(124, 58, 237, 0.28), transparent 50%),
+    radial-gradient(ellipse 60% 45% at 0% 90%, rgba(14, 165, 164, 0.22), transparent 50%),
+    linear-gradient(180deg, #07101f 0%, #050814 42%, #0a0618 100%);
+}
+
+.login-atmosphere {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.login-veil {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 42%, transparent 0%, rgba(4, 6, 16, 0.35) 70%, rgba(4, 6, 16, 0.62) 100%);
+}
+
+.login-aurora {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(72px);
+  opacity: 0.7;
+  mix-blend-mode: screen;
+}
+
+.login-aurora-a {
+  width: 42vw;
+  height: 42vw;
+  min-width: 280px;
+  min-height: 280px;
+  left: -8%;
+  top: 8%;
+  background: radial-gradient(circle, rgba(34, 211, 238, 0.55), transparent 68%);
+  animation: login-drift 22s ease-in-out infinite;
+}
+
+.login-aurora-b {
+  width: 48vw;
+  height: 48vw;
+  min-width: 320px;
+  min-height: 320px;
+  right: -12%;
+  top: -6%;
+  background: radial-gradient(circle, rgba(167, 139, 250, 0.5), transparent 68%);
+  animation: login-drift 26s ease-in-out infinite reverse;
+}
+
+.login-aurora-c {
+  width: 36vw;
+  height: 36vw;
+  min-width: 240px;
+  min-height: 240px;
+  left: 32%;
+  bottom: -12%;
+  background: radial-gradient(circle, rgba(251, 191, 36, 0.28), transparent 70%);
+  animation: login-drift 18s ease-in-out infinite;
+}
+
+.login-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(125, 211, 252, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(125, 211, 252, 0.05) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 45%, black 20%, transparent 75%);
+  opacity: 0.55;
+}
+
+.login-star {
+  position: absolute;
+  border-radius: 999px;
+  background: #eaf6ff;
+  box-shadow: 0 0 6px rgba(186, 230, 253, 0.9);
+  animation: login-twinkle ease-in-out infinite;
+}
+
+.login-spark {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  margin-left: -3px;
+  margin-top: -3px;
+  background: radial-gradient(circle, #fff7d6 0%, #fbbf24 38%, transparent 70%);
+  animation: login-float ease-in-out infinite;
+  filter: blur(0.2px);
+}
+
+.login-dna-panel {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.login-dna-glow {
+  position: absolute;
+  left: -10%;
+  right: -10%;
+  top: 8%;
+  bottom: 8%;
+  background: radial-gradient(ellipse 70% 55% at 42% 50%, rgba(34, 211, 238, 0.3), rgba(167, 139, 250, 0.14) 48%, transparent 74%);
+  filter: blur(52px);
+  transform: rotate(-18deg);
+  pointer-events: none;
+}
+
+.login-sigil {
+  background:
+    radial-gradient(circle, transparent 42%, rgba(125, 211, 252, 0.12) 43%, transparent 44%),
+    radial-gradient(circle, transparent 54%, rgba(167, 139, 250, 0.16) 55%, transparent 56.5%),
+    conic-gradient(from 0deg, transparent 0 8%, rgba(250, 204, 21, 0.35) 8% 9%, transparent 9% 24%, rgba(34, 211, 238, 0.4) 24% 25%, transparent 25% 58%, rgba(167, 139, 250, 0.35) 58% 59%, transparent 59% 100%);
+  border-radius: 999px;
+  mask-image: radial-gradient(circle, transparent 38%, black 42%, black 58%, transparent 62%);
+  animation: login-spin 48s linear infinite;
+  filter: blur(0.3px);
+  opacity: 0.85;
+}
+
+.login-card-shell {
+  position: relative;
+  isolation: isolate;
+  padding: 1.5px;
+  border-radius: 1.15rem;
+  overflow: hidden;
+}
+
+.login-card-shell::before {
+  content: '';
+  position: absolute;
+  inset: -45%;
+  background: conic-gradient(
+    from 0deg,
+    rgba(34, 211, 238, 0.05),
+    rgba(167, 139, 250, 0.85),
+    rgba(250, 204, 21, 0.75),
+    rgba(34, 211, 238, 0.9),
+    rgba(167, 139, 250, 0.2),
+    rgba(34, 211, 238, 0.05)
+  );
+  animation: login-spin 9s linear infinite;
+  z-index: -1;
+}
+
+.login-card {
+  border: 1px solid rgba(186, 230, 253, 0.18);
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 250, 255, 0.82) 100%);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.25) inset,
+    0 24px 80px -20px rgba(8, 15, 40, 0.55),
+    0 0 60px -12px rgba(34, 211, 238, 0.35);
+  backdrop-filter: blur(22px);
+}
+
+.login-submit {
+  box-shadow: 0 0 24px rgba(14, 116, 144, 0.35);
+}
+
+@keyframes login-drift {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  40% { transform: translate3d(6%, -5%, 0) scale(1.08); }
+  70% { transform: translate3d(-4%, 6%, 0) scale(0.96); }
+}
+
+@keyframes login-twinkle {
+  0%, 100% { opacity: 0.2; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.25); }
+}
+
+@keyframes login-float {
+  0%, 100% { transform: translate3d(0, 0, 0); opacity: 0.15; }
+  20% { opacity: 0.9; }
+  50% { transform: translate3d(12px, -28px, 0); opacity: 0.45; }
+  80% { opacity: 0.85; }
+}
+
+@keyframes login-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-aurora,
+  .login-star,
+  .login-spark,
+  .login-sigil,
+  .login-card-shell::before {
+    animation: none !important;
+  }
+}
