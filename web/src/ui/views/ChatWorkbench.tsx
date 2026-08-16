@@ -14,6 +14,7 @@ import {
   ChevronsUpDown,
   Eraser,
   FileText,
+  Files,
   FolderOpen,
   Gauge,
   Loader2,
@@ -393,6 +394,7 @@ export default function ChatWorkbench() {
   const [input, setInput] = useState('')
   const [createOpen, setCreateOpen] = useState(false)
   const [insightsOpen, setInsightsOpen] = useState(false)
+  const [artifactsOpen, setArtifactsOpen] = useState(true)
   const abortRef = useRef<Map<string | null, AbortController>>(new Map())
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
@@ -739,6 +741,23 @@ export default function ChatWorkbench() {
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
+              variant={artifactsOpen ? 'secondary' : 'outline'}
+              size="sm"
+              onClick={() => setArtifactsOpen((v) => !v)}
+              disabled={noProjectSelected}
+            >
+              <Files />
+              {artifactsOpen ? '收起产物' : '产物'}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            {artifactsOpen ? '关闭提交物 / 产出物悬浮窗' : '打开提交物 / 产出物悬浮窗'}
+          </TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
               variant="ghost"
               size="icon-sm"
               onClick={() => setInsightsOpen(true)}
@@ -782,8 +801,12 @@ export default function ChatWorkbench() {
           <div className="flex min-h-0 flex-1 flex-col">
           {}
           <div className="relative flex min-h-0 flex-1 flex-col">
-            <MessageList messages={messages} streaming={streaming} reserveRight />
-            {projectId ? (
+            <MessageList
+              messages={messages}
+              streaming={streaming}
+              reserveRight={artifactsOpen}
+            />
+            {projectId && artifactsOpen ? (
               <ArtifactsDock projectId={projectId} messages={messages} />
             ) : null}
           </div>
