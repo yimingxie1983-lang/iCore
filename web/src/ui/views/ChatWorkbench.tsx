@@ -741,13 +741,12 @@ export default function ChatWorkbench() {
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
-              variant={artifactsOpen ? 'secondary' : 'outline'}
-              size="sm"
+              variant={artifactsOpen ? 'secondary' : 'ghost'}
+              size="icon-sm"
               onClick={() => setArtifactsOpen((v) => !v)}
               disabled={noProjectSelected}
             >
               <Files />
-              {artifactsOpen ? '收起产物' : '产物'}
             </Button>
           </TooltipTrigger>
           <TooltipContent>

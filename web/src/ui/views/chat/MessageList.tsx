@@ -3,11 +3,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowDown,
+  ClipboardList,
+  Code2,
   FileSearch,
   FlaskConical,
   Loader2,
   MessageSquare,
   Microscope,
+  Stethoscope,
 } from 'lucide-react'
 
 import MessageBubble from './MessageBubble'
@@ -44,6 +47,21 @@ const QUICK_PROMPTS = [
     icon: FlaskConical,
     title: '方法论咨询',
     hint: '"我想做一个回顾性队列研究，给我列出关键设计要点与统计陷阱"',
+  },
+  {
+    icon: Stethoscope,
+    title: '辅助诊断',
+    hint: '"根据主诉、影像和检验结果，给出鉴别诊断与下一步检查建议"',
+  },
+  {
+    icon: ClipboardList,
+    title: '临床试验',
+    hint: '"帮我起草一项 II 期临床试验方案，包括入排标准、终点和样本量要点"',
+  },
+  {
+    icon: Code2,
+    title: '系统开发',
+    hint: '"按这个需求帮我拆分模块、给出接口设计和可落地的实现步骤"',
   },
 ]
 
