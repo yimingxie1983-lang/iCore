@@ -178,7 +178,7 @@ export default function MessageList({ messages, streaming, className, reserveRig
         ref={scrollRef}
         className={cn(
           'flex-1 overflow-y-auto scroll-smooth px-4 py-6 sm:px-8',
-          reserveRight && 'lg:pr-[400px]',
+          reserveRight && 'lg:pr-[268px]',
         )}
       >
         {messages.length === 0 ? (
