@@ -36,10 +36,12 @@ export default defineConfig({
     headers: {
       'Cache-Control': 'no-store',
     },
-    // 把 /api 与 SSE 流转发到 FastAPI 后端（默认 :8000）
+    // 把 /api 与 SSE 流转发到 FastAPI 后端。
+    // 不用 8000：本机 127.0.0.1:8000 常被其他 uvicorn（app.main:app）占用，
+    // Windows 下 localhost 会优先打到那个进程，导致登录校验的不是 iCore。
     proxy: {
       '/api': {
-        target: 'http://localhost:8000',
+        target: 'http://127.0.0.1:8010',
         changeOrigin: true,
       },
     },
