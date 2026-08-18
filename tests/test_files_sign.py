@@ -131,3 +131,38 @@ async def test_sign_and_fetch_nested_unicode_path(app, client, tmp_path):
     )
     assert resp.status_code == 200, resp.text
     assert resp.text == "escc-ok"
+
+
+async def test_preview_md_and_csv_with_workspace_prefix(app, client, tmp_path):
+    from pathlib import Path
+
+    from cancer_claw.config import settings
+
+    _, headers, project_id = await _register_and_project(client)
+    docs = Path(settings.paths.projects_dir) / project_id / "workspace" / "docs"
+    docs.mkdir(parents=True, exist_ok=True)
+    (docs / "note.md").write_text("# hello\nworld", encoding="utf-8")
+    (docs / "table.csv").write_text("a,b\n1,2\n3,4\n", encoding="utf-8")
+
+    for path in ("workspace/docs/note.md", "docs/note.md"):
+        resp = await client.get(
+            f"/api/projects/{project_id}/files/preview",
+            params={"path": path},
+            headers=headers,
+        )
+        assert resp.status_code == 200, (path, resp.text)
+        body = resp.json()
+        assert body["kind"] == "text"
+        assert "hello" in body["text"]
+
+    for path in ("workspace/docs/table.csv", "docs/table.csv"):
+        resp = await client.get(
+            f"/api/projects/{project_id}/files/preview",
+            params={"path": path},
+            headers=headers,
+        )
+        assert resp.status_code == 200, (path, resp.text)
+        body = resp.json()
+        assert body["kind"] == "csv"
+        assert body["columns"] == ["a", "b"]
+        assert ["1", "2"] in body["rows"]

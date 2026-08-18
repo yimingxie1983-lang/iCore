@@ -266,6 +266,33 @@ function isOfficeKind(kind: FileRenderKind) {
   return kind === 'docx' || kind === 'xlsx' || kind === 'pptx'
 }
 
+function isDocumentKind(file: PresentedFile) {
+  const kind = inferRenderKind(file.name || file.path, file.render_kind)
+  return kind === 'markdown' || kind === 'docx' || kind === 'pdf'
+}
+
+function fullWidthByRow(files: PresentedFile[]): boolean[] {
+  const flags = files.map(() => false)
+  let pending: number | null = null
+  files.forEach((file, index) => {
+    if (isDocumentKind(file)) {
+      if (pending !== null) {
+        flags[pending] = true
+        pending = null
+      }
+      flags[index] = true
+      return
+    }
+    if (pending !== null) {
+      pending = null
+      return
+    }
+    pending = index
+  })
+  if (pending !== null) flags[pending] = true
+  return flags
+}
+
 function DocxView({
   preview,
   compact,
@@ -427,6 +454,145 @@ function OfficePreview({
   return <div className="text-[12px] text-muted-foreground">无法预览该 Office 文件，请下载后查看。</div>
 }
 
+function isTextualKind(kind: FileRenderKind) {
+  return kind === 'markdown' || kind === 'code' || kind === 'json' || kind === 'csv'
+}
+
+function PreviewFromServer({
+  file,
+  payload,
+  compact,
+}: {
+  file: PresentedFile
+  payload: FilePreviewResp
+  compact?: boolean
+}) {
+  if (payload.kind === 'csv') {
+    const rows = compact ? payload.rows.slice(0, 8) : payload.rows
+    const clipped = compact && payload.rows.length > 8
+    return (
+      <div>
+        <CsvTable columns={payload.columns} rows={rows} />
+        {payload.truncated || clipped ? (
+          <div className="mt-1 text-[11px] text-muted-foreground">
+            {compact ? '仅显示部分行，点击展开查看更多' : '仅显示部分行'}
+          </div>
+        ) : null}
+      </div>
+    )
+  }
+  if (payload.kind === 'text') {
+    return (
+      <div>
+        <TextSnippet file={file} text={payload.text} compact={compact} />
+        {payload.truncated ? (
+          <div className="mt-1 text-[11px] text-muted-foreground">
+            {compact ? '已截断，点击展开查看更多' : '已截断'}
+          </div>
+        ) : null}
+      </div>
+    )
+  }
+  return null
+}
+
+function CachedSnippet({
+  file,
+  compact,
+  note,
+}: {
+  file: PresentedFile
+  compact?: boolean
+  note?: string
+}) {
+  if (!file.preview) {
+    return note ? (
+      <div className="text-[12px] text-muted-foreground">{note}</div>
+    ) : null
+  }
+  return (
+    <div>
+      <TextSnippet file={file} text={file.preview} compact={compact} />
+      {compact && file.preview_truncated ? (
+        <div className="mt-1 text-[11px] text-muted-foreground">已截断，点击展开查看更多</div>
+      ) : null}
+      {note ? <div className="mt-1 text-[11px] text-muted-foreground">{note}</div> : null}
+    </div>
+  )
+}
+
+function TextualPreview({
+  projectId,
+  file,
+  compact,
+}: {
+  projectId: string
+  file: PresentedFile
+  compact?: boolean
+}) {
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [full, setFull] = useState<FilePreviewResp | null>(null)
+
+  useEffect(() => {
+    if (!projectId || !file.path) {
+      setLoading(false)
+      setError('')
+      setFull(null)
+      return
+    }
+    let alive = true
+    setLoading(true)
+    setError('')
+    api
+      .previewFile(projectId, file.path, compact ? { maxLines: 8 } : undefined)
+      .then((resp) => {
+        if (alive) setFull(resp)
+      })
+      .catch((err) => {
+        if (alive) setError(err instanceof Error ? err.message : '无法加载预览')
+      })
+      .finally(() => {
+        if (alive) setLoading(false)
+      })
+    return () => {
+      alive = false
+    }
+  }, [projectId, file.path, compact])
+
+  if (full?.kind === 'csv' || full?.kind === 'text') {
+    return <PreviewFromServer file={file} payload={full} compact={compact} />
+  }
+  if (loading) {
+    if (file.preview) return <CachedSnippet file={file} compact={compact} />
+    return (
+      <div
+        className={cn(
+          'flex items-center gap-2 text-[12px] text-muted-foreground',
+          compact ? 'py-3' : 'py-8 text-[13px]',
+        )}
+      >
+        <Loader2 className="h-4 w-4 animate-spin" />
+        正在加载预览…
+      </div>
+    )
+  }
+  if (error) {
+    if (file.preview) return <CachedSnippet file={file} compact={compact} note={error} />
+    return (
+      <div className={cn('text-muted-foreground', compact ? 'text-[12px]' : 'px-1 py-6 text-[13px]')}>
+        {error}。请改用下载。
+      </div>
+    )
+  }
+  if (file.preview) return <CachedSnippet file={file} compact={compact} />
+  return (
+    <div className={cn('text-muted-foreground', compact ? 'text-[12px]' : 'px-1 py-6 text-[13px]')}>
+      该文件无法在线预览，请下载后查看。
+    </div>
+  )
+}
+
 function InlineBody({ projectId, file }: { projectId: string; file: PresentedFile }) {
   if (file.render_kind === 'image') {
     return <ImagePreview projectId={projectId} file={file} />
@@ -441,13 +607,10 @@ function InlineBody({ projectId, file }: { projectId: string; file: PresentedFil
       </div>
     )
   }
-  if (file.preview) {
+  if (isTextualKind(file.render_kind)) {
     return (
       <div className="max-h-56 overflow-auto">
-        <TextSnippet file={file} text={file.preview} compact />
-        {file.preview_truncated ? (
-          <div className="mt-1 text-[11px] text-muted-foreground">已截断，点击展开查看更多</div>
-        ) : null}
+        <TextualPreview projectId={projectId} file={file} compact />
       </div>
     )
   }
@@ -459,8 +622,8 @@ function InlineBody({ projectId, file }: { projectId: string; file: PresentedFil
     )
   }
   return (
-    <div className="text-[12px] text-muted-foreground">
-      点击展开从服务器加载预览。
+    <div className="max-h-56 overflow-auto">
+      <TextualPreview projectId={projectId} file={file} compact />
     </div>
   )
 }
@@ -472,39 +635,6 @@ function DialogBody({
   projectId: string
   file: PresentedFile
 }) {
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [full, setFull] = useState<FilePreviewResp | null>(null)
-
-  const needsFetch =
-    file.render_kind === 'markdown' ||
-    file.render_kind === 'code' ||
-    file.render_kind === 'json' ||
-    file.render_kind === 'csv'
-
-  useEffect(() => {
-    if (!needsFetch || !projectId || !file.path) return
-    let alive = true
-    setLoading(true)
-    setError('')
-    api
-      .previewFile(projectId, file.path)
-      .then((resp) => {
-        if (alive) setFull(resp)
-      })
-      .catch((err) => {
-        if (alive) {
-          setError(err instanceof Error ? err.message : '无法加载预览')
-        }
-      })
-      .finally(() => {
-        if (alive) setLoading(false)
-      })
-    return () => {
-      alive = false
-    }
-  }, [needsFetch, projectId, file.path])
-
   if (file.render_kind === 'image') {
     return <ImagePreview projectId={projectId} file={file} large />
   }
@@ -514,61 +644,7 @@ function DialogBody({
   if (isOfficeKind(file.render_kind)) {
     return <OfficePreview projectId={projectId} file={file} />
   }
-  if (loading) {
-    return (
-      <div className="flex items-center gap-2 px-1 py-8 text-[13px] text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" />
-        正在加载预览…
-      </div>
-    )
-  }
-  if (full?.kind === 'csv') {
-    return (
-      <div className="max-h-[70vh] overflow-auto">
-        <CsvTable columns={full.columns} rows={full.rows} />
-        {full.truncated ? (
-          <div className="mt-2 text-[11px] text-muted-foreground">仅显示部分行</div>
-        ) : null}
-      </div>
-    )
-  }
-  if (full?.kind === 'text') {
-    return (
-      <div className="max-h-[70vh] overflow-auto">
-        <TextSnippet file={file} text={full.text} />
-        {full.truncated ? (
-          <div className="mt-2 text-[11px] text-muted-foreground">已截断</div>
-        ) : null}
-      </div>
-    )
-  }
-  if (error) {
-    if (file.preview) {
-      return (
-        <div className="max-h-[70vh] overflow-auto">
-          <TextSnippet file={file} text={file.preview} />
-          <div className="mt-2 text-[11px] text-muted-foreground">{error}</div>
-        </div>
-      )
-    }
-    return (
-      <div className="px-1 py-6 text-[13px] text-muted-foreground">
-        {error}。请改用下载。
-      </div>
-    )
-  }
-  if (file.preview) {
-    return (
-      <div className="max-h-[70vh] overflow-auto">
-        <TextSnippet file={file} text={file.preview} />
-      </div>
-    )
-  }
-  return (
-    <div className="px-1 py-6 text-[13px] text-muted-foreground">
-      该文件无法在线预览，请下载后查看。
-    </div>
-  )
+  return <TextualPreview projectId={projectId} file={file} />
 }
 
 export function FilePreviewDialog({
@@ -610,17 +686,29 @@ export function FilePreviewDialog({
 function FileCard({
   projectId,
   file: raw,
+  groupTitle,
+  className,
 }: {
   projectId: string
   file: PresentedFile
+  groupTitle?: string
+  className?: string
 }) {
   const file: PresentedFile = {
     ...raw,
     render_kind: inferRenderKind(raw.name || raw.path, raw.render_kind),
   }
   const [open, setOpen] = useState(false)
+  const meta = [KIND_LABEL[file.render_kind], fmtBytes(file.size)]
+    .filter(Boolean)
+    .join(' · ')
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-card-muted/50">
+    <div
+      className={cn(
+        'flex min-h-0 min-w-0 flex-col overflow-hidden rounded-lg border border-border bg-card-muted/50',
+        className,
+      )}
+    >
       <div className="flex items-center gap-2 border-b border-border/70 px-3 py-1.5">
         <KindIcon kind={file.render_kind} />
         <button
@@ -630,8 +718,10 @@ function FileCard({
           title={`预览 ${file.name}`}
         >
           <div className="truncate text-[13px] font-medium text-foreground">{file.name}</div>
-          <div className="text-[10.5px] text-muted-foreground">
-            {[KIND_LABEL[file.render_kind], fmtBytes(file.size)].filter(Boolean).join(' · ')}
+          <div className="truncate text-[10.5px] text-muted-foreground">
+            {[groupTitle && groupTitle !== file.name ? groupTitle : null, meta]
+              .filter(Boolean)
+              .join(' · ')}
           </div>
         </button>
         <Button
@@ -645,7 +735,7 @@ function FileCard({
         </Button>
         <DownloadButton projectId={projectId} file={file} />
       </div>
-      <div className="px-3 py-2">
+      <div className="min-h-[10.5rem] flex-1 overflow-auto px-3 py-2">
         <InlineBody projectId={projectId} file={file} />
       </div>
       <FilePreviewDialog
@@ -665,31 +755,25 @@ export default function PresentedFilesBlock({
   projectId: string
   groups: FilePresentation[]
 }) {
-  if (!groups.length) return null
+  const items = groups.flatMap((group, index) =>
+    group.files.map((file, fileIndex) => ({
+      key: `${file.path || file.name}:${index}:${fileIndex}`,
+      file,
+      groupTitle: group.title,
+    })),
+  )
+  if (!items.length) return null
+  const fullWidth = fullWidthByRow(items.map((item) => item.file))
   return (
-    <div className="space-y-3">
-      {groups.map((group, index) => (
-        <section key={`${group.title || 'files'}:${index}`} className="space-y-2">
-          {(group.title || group.description) && (
-            <div className="px-0.5">
-              {group.title ? (
-                <div className="text-[12.5px] font-semibold text-foreground">{group.title}</div>
-              ) : null}
-              {group.description ? (
-                <div className="text-[11.5px] text-muted-foreground">{group.description}</div>
-              ) : null}
-            </div>
-          )}
-          <div className="space-y-2">
-            {group.files.map((file) => (
-              <FileCard
-                key={file.path || file.name}
-                projectId={projectId}
-                file={file}
-              />
-            ))}
-          </div>
-        </section>
+    <div className="grid grid-cols-2 gap-2">
+      {items.map((item, index) => (
+        <FileCard
+          key={item.key}
+          projectId={projectId}
+          file={item.file}
+          groupTitle={item.groupTitle}
+          className={fullWidth[index] ? 'col-span-2' : undefined}
+        />
       ))}
     </div>
   )

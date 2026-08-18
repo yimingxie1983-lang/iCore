@@ -748,6 +748,43 @@ export type FilePreviewResp =
       truncated: boolean
     }
 
+function projectFilePathCandidates(path: string): string[] {
+  const normalized = (path || '').replace(/\\/g, '/').replace(/^\/+/, '')
+  if (!normalized) return []
+  const candidates = [normalized]
+  if (normalized.startsWith('workspace/')) {
+    candidates.push(normalized.slice('workspace/'.length))
+  } else {
+    candidates.push(`workspace/${normalized}`)
+  }
+  return [...new Set(candidates.filter(Boolean))]
+}
+
+async function requestWithFilePathCandidates<T>(
+  path: string,
+  run: (candidate: string) => Promise<T>,
+  missingMessage: string,
+): Promise<T> {
+  const unique = projectFilePathCandidates(path)
+  if (!unique.length) {
+    throw new ApiError(missingMessage, 404)
+  }
+  let last: unknown
+  for (const candidate of unique) {
+    try {
+      return await run(candidate)
+    } catch (err) {
+      last = err
+      if (err instanceof ApiError && err.status === 404) continue
+      throw err
+    }
+  }
+  if (last instanceof ApiError && last.status === 404) {
+    throw new ApiError(missingMessage, 404)
+  }
+  throw last instanceof Error ? last : new ApiError(missingMessage, 404)
+}
+
 export const api = {
 
   health: () => http.get<HealthResp>('/health').then((r) => r.data),
@@ -1375,17 +1412,9 @@ export const api = {
       .then((r) => r.data),
 
   downloadProjectFile: async (projectId: string, path: string, filename: string) => {
-    const normalized = path.replace(/\\/g, '/').replace(/^\/+/, '')
-    const candidates = [normalized]
-    if (normalized.startsWith('workspace/')) {
-      candidates.push(normalized.slice('workspace/'.length))
-    } else if (normalized) {
-      candidates.push(`workspace/${normalized}`)
-    }
-    const unique = [...new Set(candidates.filter(Boolean))]
-    let last: unknown
-    for (const candidate of unique) {
-      try {
+    await requestWithFilePathCandidates(
+      path,
+      async (candidate) => {
         const resp = await http.get<Blob>(`/projects/${projectId}/files/raw`, {
           params: { path: candidate, download: true },
           responseType: 'blob',
@@ -1399,17 +1428,9 @@ export const api = {
         a.click()
         a.remove()
         window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000)
-        return
-      } catch (err) {
-        last = err
-        if (err instanceof ApiError && err.status === 404) continue
-        throw err
-      }
-    }
-    if (last instanceof ApiError && last.status === 404) {
-      throw new ApiError(`文件不存在: ${filename || path}`, 404)
-    }
-    throw last instanceof Error ? last : new ApiError('文件不存在', 404)
+      },
+      `文件不存在: ${filename || path}`,
+    )
   },
 
   previewFile: (
@@ -1417,9 +1438,14 @@ export const api = {
     path: string,
     opts?: { maxLines?: number },
   ) =>
-    http
-      .get<FilePreviewResp>(`/projects/${projectId}/files/preview`, {
-        params: { path, max_lines: opts?.maxLines ?? undefined },
-      })
-      .then((r) => r.data),
+    requestWithFilePathCandidates(
+      path,
+      (candidate) =>
+        http
+          .get<FilePreviewResp>(`/projects/${projectId}/files/preview`, {
+            params: { path: candidate, max_lines: opts?.maxLines ?? undefined },
+          })
+          .then((r) => r.data),
+      `文件不存在: ${path}`,
+    ),
 }
