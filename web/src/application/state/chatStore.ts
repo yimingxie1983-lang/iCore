@@ -1090,6 +1090,13 @@ function _applyEventToMessage(
         return {
           ...step,
           status: ev.success === false ? 'failed' : 'success',
+          args:
+            step.args ||
+            (typeof ev.arguments === 'string'
+              ? ev.arguments
+              : ev.arguments
+                ? JSON.stringify(ev.arguments)
+                : step.args),
           output: ev.output as string | undefined,
           error: ev.error as string | undefined,
           durationMs: Number(ev.duration_ms || 0),
@@ -1100,12 +1107,21 @@ function _applyEventToMessage(
       }
       return step
     })
+    const extra = presentationsFromToolResult(ev)
+    const presentedFiles = extra.length
+      ? [...(m.presentedFiles || []), ...extra]
+      : m.presentedFiles
     if (!attached) {
       const toolStep: ToolStep = {
         id: genId(),
         kind: 'tool',
         tool: String(ev.tool || 'tool'),
-        args: '',
+        args:
+          typeof ev.arguments === 'string'
+            ? ev.arguments
+            : ev.arguments
+              ? JSON.stringify(ev.arguments)
+              : '',
         status: ev.success === false ? 'failed' : 'success',
         output: ev.output as string | undefined,
         error: ev.error as string | undefined,
@@ -1113,9 +1129,9 @@ function _applyEventToMessage(
         data: ev.data,
         ts: now,
       }
-      return { ...m, steps: [...m.steps, toolStep] }
+      return { ...m, steps: [...m.steps, toolStep], presentedFiles }
     }
-    return { ...m, steps }
+    return { ...m, steps, presentedFiles }
   }
 
   if (ev.type === 'delegate_result') {
@@ -1901,6 +1917,22 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
 const PRESENTATION_SENTINEL_RE =
   /<!--CC:PRESENTATION:v1-->([\s\S]*?)<!--\/CC:PRESENTATION-->/g
+
+function presentationFromData(data: unknown): FilePresentation | null {
+  if (!data || typeof data !== 'object') return null
+  const p = (data as { presentation?: unknown }).presentation
+  if (!p || typeof p !== 'object') return null
+  const cast = p as Partial<FilePresentation>
+  if (cast.kind !== 'files') return null
+  if (!Array.isArray(cast.files) || cast.files.length === 0) return null
+  return cast as FilePresentation
+}
+
+function presentationsFromToolResult(ev: SSEEvent): FilePresentation[] {
+  const fromData = presentationFromData((ev as { data?: unknown }).data)
+  if (fromData) return [fromData]
+  return extractPresentationsFromContent(String(ev.output || ''))
+}
 
 function extractPresentationsFromContent(content: string): FilePresentation[] {
   if (!content.includes('CC:PRESENTATION')) return []

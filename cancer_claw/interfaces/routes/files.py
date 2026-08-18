@@ -70,6 +70,28 @@ def _project_root(project_id: str) -> Path:
         projects_dir = projects_dir.resolve()
     return (projects_dir / project_id).resolve()
 
+def _file_path_candidates(raw_path: str) -> list[str]:
+    raw = (raw_path or "").strip()
+    if not raw:
+        return []
+    posix = raw.replace("\\", "/")
+    out = [raw]
+    stripped = posix.lstrip("/")
+    if stripped.startswith("workspace/"):
+        rest = stripped[len("workspace/") :]
+        if rest:
+            out.append(rest)
+    elif stripped and not Path(raw).is_absolute():
+        out.append(f"workspace/{stripped}")
+    seen: set[str] = set()
+    unique: list[str] = []
+    for item in out:
+        if item not in seen:
+            seen.add(item)
+            unique.append(item)
+    return unique
+
+
 def _resolve_safe_file(project_id: str, raw_path: str) -> Path:
 
     raw = (raw_path or "").strip()
@@ -80,23 +102,29 @@ def _resolve_safe_file(project_id: str, raw_path: str) -> Path:
     if not root.exists():
         raise HTTPException(status_code=404, detail=f"项目目录不存在: {project_id}")
 
-    candidate = Path(raw)
-    target = candidate.resolve() if candidate.is_absolute() else (root / candidate).resolve()
+    saw_escape = False
+    not_file: str | None = None
+    for rel in _file_path_candidates(raw):
+        candidate = Path(rel)
+        target = candidate.resolve() if candidate.is_absolute() else (root / candidate).resolve()
+        if not _is_descendant(target, root):
+            saw_escape = True
+            continue
+        if target.is_file():
+            return target
+        if target.exists():
+            not_file = rel
 
-    if not _is_descendant(target, root):
+    if not_file:
+        raise HTTPException(status_code=400, detail=f"路径不是文件: {not_file}")
+    if saw_escape:
         logger.warning(
             "files_path_escape_blocked",
             project_id=project_id,
             requested=raw,
         )
         raise HTTPException(status_code=400, detail="路径越界，仅允许访问项目根目录之下的文件")
-
-    if not target.exists():
-        raise HTTPException(status_code=404, detail=f"文件不存在: {raw}")
-    if not target.is_file():
-        raise HTTPException(status_code=400, detail=f"路径不是文件: {raw}")
-
-    return target
+    raise HTTPException(status_code=404, detail=f"文件不存在: {raw}")
 
 def _guess_mime(path: Path) -> str:
 
@@ -211,6 +239,23 @@ class SignFileReq(BaseModel):
     path: str = Field(..., max_length=1024)
     download: bool = False
 
+
+@router.get(
+    "/projects/{project_id}/files/deliverables",
+    tags=["项目文件"],
+    summary="列出 workspace 阶段产出（排除探查脚本和过程日志）",
+)
+async def list_deliverables(
+    project_id: str,
+    _ctx: dict = Depends(require_project_read),
+) -> dict:
+    await _assert_project_exists(project_id)
+    from cancer_claw.services.deliverables import list_workspace_deliverables
+
+    root = _project_root(project_id)
+    items = list_workspace_deliverables(root)
+    return {"items": items}
+
 @router.post(
     "/projects/{project_id}/files/sign",
     tags=["项目文件"],
@@ -234,7 +279,9 @@ async def sign_file(
             "download": str(body.download).lower(),
             "exp": str(exp),
             "sig": sig,
-        }
+        },
+        quote_via=quote,
+        safe="/",
     )
     return {
         "url": f"/api/projects/{project_id}/files/raw?{qs}",
@@ -269,6 +316,23 @@ async def preview_file(
         delimiter = "," if ext == ".csv" else "\t"
         return JSONResponse(_preview_csv(target, mime, size, delimiter, max_lines))
 
+    from cancer_claw.services.office_preview import office_format, preview_office
+
+    if office_format(target):
+        try:
+            payload = preview_office(
+                target,
+                max_chars=_TEXT_PREVIEW_HARD_CAP,
+                max_rows=max_lines,
+            )
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e)) from e
+        except Exception as e:
+            logger.warning("office_preview_failed", path=str(target), error=str(e))
+            raise HTTPException(status_code=400, detail=f"Office 预览失败: {e}") from e
+        payload.setdefault("size", size)
+        payload.setdefault("mime", mime)
+        return JSONResponse(payload)
 
     if _looks_binary(target):
         raise HTTPException(

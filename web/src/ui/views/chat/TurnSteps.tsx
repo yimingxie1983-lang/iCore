@@ -30,6 +30,7 @@ import { toast } from '@/ui/widgets/ui/sonner'
 import MarkdownRenderer from '@/ui/widgets/common/MarkdownRenderer'
 import SquadCard from './steps/SquadCard'
 import CouncilCard from './steps/CouncilCard'
+import PresentedFilesBlock from './PresentedFiles'
 import {
   ErrorBlock,
   NoticeRow,
@@ -38,6 +39,8 @@ import {
   ToolStepCard,
   fmtDuration,
 } from './steps/_shared/StepBlocks'
+import { useSessionsStore } from '@/application/state/sessionsStore'
+import type { StageOutputSegment } from '@/shared/helpers/conversationArtifacts'
 
 function StatusDot({ status }: { status: 'running' | 'success' | 'failed' | 'pending' }) {
   return (
@@ -265,10 +268,23 @@ function PipelineRow({ step }: { step: PipelineStep }) {
 export default function TurnSteps({
   steps,
   streaming,
+  stageOutputs = [],
 }: {
   steps: TurnStep[]
   streaming?: boolean
+  stageOutputs?: StageOutputSegment[]
 }) {
+
+  const projectId = useSessionsStore((s) => s.projectId)
+  const outputsByStep = useMemo(() => {
+    const map = new Map<string, StageOutputSegment[]>()
+    for (const segment of stageOutputs) {
+      const list = map.get(segment.afterStepId) || []
+      list.push(segment)
+      map.set(segment.afterStepId, list)
+    }
+    return map
+  }, [stageOutputs])
 
   const compact = useMemo(() => {
     const out: TurnStep[] = []
@@ -286,7 +302,6 @@ export default function TurnSteps({
     }
 
     if (streaming && out.length > 0) {
-
       for (let i = out.length - 1; i >= 0; i--) {
         if (out[i].kind === 'thinking') {
           out[i] = { ...(out[i] as ThinkingStep), streaming: true }
@@ -302,40 +317,47 @@ export default function TurnSteps({
   return (
     <div className="flex flex-col gap-3">
       {compact.map((step) => {
+        let card = null
         if (step.kind === 'thinking') {
-          return <ThinkingBlock key={step.id} step={step} />
+          card = <ThinkingBlock step={step} />
+        } else if (step.kind === 'pretext') {
+          card = <PretextBlock step={step} streaming={streaming} />
+        } else if (step.kind === 'tool') {
+          card = <ToolStepCard step={step} />
+        } else if (step.kind === 'ask_user') {
+          card = <AskUserCard step={step} />
+        } else if (step.kind === 'delegate') {
+          card = <DelegateRow step={step} />
+        } else if (step.kind === 'subagent') {
+          card = <SubagentRow step={step} />
+        } else if (step.kind === 'pipeline') {
+          card = <PipelineRow step={step} />
+        } else if (step.kind === 'squad') {
+          card = <SquadCard step={step} />
+        } else if (step.kind === 'council') {
+          card = <CouncilCard step={step} />
+        } else if (step.kind === 'notice') {
+          card = <NoticeRow step={step} />
+        } else if (step.kind === 'error') {
+          card = <ErrorBlock content={step.content} />
         }
-        if (step.kind === 'pretext') {
-          return <PretextBlock key={step.id} step={step} streaming={streaming} />
-        }
-        if (step.kind === 'tool') {
-          return <ToolStepCard key={step.id} step={step} />
-        }
-        if (step.kind === 'ask_user') {
-          return <AskUserCard key={step.id} step={step} />
-        }
-        if (step.kind === 'delegate') {
-          return <DelegateRow key={step.id} step={step} />
-        }
-        if (step.kind === 'subagent') {
-          return <SubagentRow key={step.id} step={step} />
-        }
-        if (step.kind === 'pipeline') {
-          return <PipelineRow key={step.id} step={step} />
-        }
-        if (step.kind === 'squad') {
-          return <SquadCard key={step.id} step={step} />
-        }
-        if (step.kind === 'council') {
-          return <CouncilCard key={step.id} step={step} />
-        }
-        if (step.kind === 'notice') {
-          return <NoticeRow key={step.id} step={step} />
-        }
-        if (step.kind === 'error') {
-          return <ErrorBlock key={step.id} content={step.content} />
-        }
-        return null
+        const segments = outputsByStep.get(step.id) || []
+        return (
+          <div key={step.id} className="flex flex-col gap-3">
+            {card}
+            {projectId
+              ? segments.map((segment) =>
+                  segment.presentations.length ? (
+                    <PresentedFilesBlock
+                      key={`${segment.afterStepId}:${segment.title || 'stage'}`}
+                      projectId={projectId}
+                      groups={segment.presentations}
+                    />
+                  ) : null,
+                )
+              : null}
+          </div>
+        )
       })}
 
       {streaming && (

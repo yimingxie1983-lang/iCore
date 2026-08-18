@@ -56,7 +56,12 @@ _RENDER_BY_EXT: dict[str, str] = {
     ".txt": "code",
     ".log": "code",
 
-    ".xlsx": "download",
+    ".docx": "docx",
+    ".docm": "docx",
+    ".xlsx": "xlsx",
+    ".xlsm": "xlsx",
+    ".pptx": "pptx",
+    ".pptm": "pptx",
     ".xls": "download",
 
     ".zip": "download",
@@ -80,6 +85,7 @@ _RENDER_BY_EXT: dict[str, str] = {
 }
 
 _TEXTUAL_RENDER_KINDS = {"markdown", "code", "csv", "json"}
+_OFFICE_RENDER_KINDS = {"docx", "xlsx", "pptx"}
 
 _PREVIEW_HARD_CAP = 4000
 
@@ -88,12 +94,68 @@ _MAX_FILES_PER_CALL = 12
 _SENTINEL_OPEN = "<!--CC:PRESENTATION:v1-->"
 _SENTINEL_CLOSE = "<!--/CC:PRESENTATION-->"
 
+
+def coerce_present_paths(raw_paths: Any) -> list[str]:
+    """把模型传来的 paths 收成干净路径列表。
+
+    常见入参：
+    - ``["a.md", "b.md"]`` 真数组
+    - ``'["a.md", "b.md"]'`` JSON 数组被二次编码成字符串（实际线上最常见）
+    - ``"a.md"`` / ``"a.md, b.md"`` 单路径或逗号分隔
+    """
+    if raw_paths is None:
+        return []
+    if isinstance(raw_paths, (list, tuple)):
+        out: list[str] = []
+        for item in raw_paths:
+            out.extend(coerce_present_paths(item))
+        return [p for p in out if p]
+    if not isinstance(raw_paths, str):
+        text = str(raw_paths).strip()
+        return [text] if text else []
+
+    text = raw_paths.strip()
+    if not text:
+        return []
+
+    if text[0] in "[{" and text[-1] in "]}":
+        try:
+            parsed = _json.loads(text)
+            return coerce_present_paths(parsed)
+        except Exception:
+            pass
+    if len(text) >= 2 and text[0] == '"' and text[-1] == '"':
+        try:
+            parsed = _json.loads(text)
+            if isinstance(parsed, (str, list, tuple)):
+                return coerce_present_paths(parsed)
+        except Exception:
+            pass
+
+    if "," in text:
+        parts = [p.strip().strip("'\"") for p in text.split(",") if p.strip()]
+        if len(parts) > 1:
+            return parts
+    return [text.strip().strip("'\"")]
+
+
 def _infer_render_kind(path: Path, override: str = "auto") -> str:
 
     override = (override or "").strip().lower() or "auto"
     if override == "inline":
         override = "code"
-    if override in {"image", "markdown", "code", "csv", "json", "pdf", "download"}:
+    if override in {
+        "image",
+        "markdown",
+        "code",
+        "csv",
+        "json",
+        "pdf",
+        "docx",
+        "xlsx",
+        "pptx",
+        "download",
+    }:
         return override
     if override != "auto":
         logger.warning("present_file_unknown_render_override", override=override)
@@ -193,9 +255,10 @@ class PresentFileTool(BaseTool):
                     "properties": {
                         "paths": {
                             "description": (
-                                "要展示的文件路径（相对项目根的 posix 路径，"
-                                "或绝对路径但必须落在项目根之内）。"
-                                "可传单个字符串或字符串数组。"
+                                "要展示的文件路径（相对 workspace 的 posix 路径，"
+                                "或项目根内的绝对路径）。"
+                                "请传字符串数组，例如 [\"report.md\"]；"
+                                "单个字符串或 JSON 数组字符串也能解析。"
                             ),
                             "oneOf": [
                                 {"type": "string"},
@@ -222,6 +285,9 @@ class PresentFileTool(BaseTool):
                                 "csv",
                                 "json",
                                 "pdf",
+                                "docx",
+                                "xlsx",
+                                "pptx",
                                 "download",
                                 "inline",
                             ],
@@ -243,21 +309,12 @@ class PresentFileTool(BaseTool):
         if raw_paths is None:
             return ToolResult(success=False, error="paths 不能为空")
 
-
-        if isinstance(raw_paths, str):
-            path_strs = [s.strip() for s in raw_paths.split(",") if s.strip()]
-            if not path_strs:
-                path_strs = [raw_paths.strip()]
-        elif isinstance(raw_paths, list):
-            path_strs = [str(s).strip() for s in raw_paths if str(s).strip()]
-        else:
+        path_strs = coerce_present_paths(raw_paths)
+        if not path_strs:
             return ToolResult(
                 success=False,
-                error=f"paths 应为字符串或字符串数组，收到 {type(raw_paths).__name__}",
+                error=f"paths 解析后为空（收到 {type(raw_paths).__name__}）",
             )
-
-        if not path_strs:
-            return ToolResult(success=False, error="paths 解析后为空")
 
         if len(path_strs) > _MAX_FILES_PER_CALL:
             return ToolResult(
@@ -310,6 +367,20 @@ class PresentFileTool(BaseTool):
                 snippet, truncated = _read_preview_safe(abs_path)
                 entry["preview"] = snippet
                 entry["preview_truncated"] = truncated
+            elif render_kind in _OFFICE_RENDER_KINDS and size > 0:
+                try:
+                    from cancer_claw.services.office_preview import office_snippet
+
+                    snippet, truncated = office_snippet(abs_path, _PREVIEW_HARD_CAP)
+                    if snippet:
+                        entry["preview"] = snippet
+                        entry["preview_truncated"] = truncated
+                except Exception as e:
+                    logger.warning(
+                        "present_file_office_preview_failed",
+                        path=str(abs_path),
+                        error=str(e),
+                    )
 
             files.append(entry)
 

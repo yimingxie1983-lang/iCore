@@ -1,8 +1,8 @@
 
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useDropzone } from 'react-dropzone'
 import {
   Activity,
@@ -37,6 +37,10 @@ import EventTimeline from './chat/EventTimeline'
 import ReasoningPane from './chat/ReasoningPane'
 import StatsPanel from './chat/StatsPanel'
 import ArtifactsDock from './chat/ArtifactsDock'
+import {
+  collectConversationArtifacts,
+  latestFinalArtifacts,
+} from '@/shared/helpers/conversationArtifacts'
 import PersonaSwitcher from './chat/PersonaSwitcher'
 import SessionsSidebar from './chat/SessionsSidebar'
 import GlobalTraceDrawer from './chat/steps/_shared/GlobalTraceDrawer'
@@ -515,6 +519,10 @@ export default function ChatWorkbench() {
   const hasUploading = attachments.some((a) => a.status === 'uploading')
 
   const messages = useChatStore((s) => s.messages)
+  const { submissions } = useMemo(
+    () => collectConversationArtifacts(messages),
+    [messages],
+  )
   const events = useChatStore((s) => s.events)
   const stats = useChatStore((s) => s.stats)
   const streaming = useChatStore((s) => s.streaming)
@@ -525,6 +533,24 @@ export default function ChatWorkbench() {
   const ingestEvent = useChatStore((s) => s.ingestEvent)
   const resetTurn = useChatStore((s) => s.resetTurn)
   const clearAll = useChatStore((s) => s.clearAll)
+
+  const queryClient = useQueryClient()
+  const { data: diskDeliverables } = useQuery({
+    queryKey: ['project-deliverables', projectId],
+    queryFn: () => api.listProjectDeliverables(projectId),
+    enabled: Boolean(projectId),
+    refetchInterval: streaming ? 4000 : 30_000,
+  })
+  useEffect(() => {
+    if (!projectId) return
+    void queryClient.invalidateQueries({ queryKey: ['project-deliverables', projectId] })
+  }, [projectId, queryClient, messages.length, streaming])
+
+  const artifacts = useMemo(
+    () => latestFinalArtifacts(messages, diskDeliverables?.items || []),
+    [messages, diskDeliverables],
+  )
+  const hasDockFiles = submissions.length > 0 || artifacts.length > 0
 
   const { data: projects } = useQuery({
     queryKey: ['projects'],
@@ -697,6 +723,7 @@ export default function ChatWorkbench() {
 
   const allProjects = projects?.items || []
   const noProjectSelected = !projectId || !allProjects.find((p) => p.id === projectId)
+  const showArtifactsDock = Boolean(projectId) && artifactsOpen && hasDockFiles
 
   return (
     <div
@@ -802,11 +829,16 @@ export default function ChatWorkbench() {
           <div className="relative flex min-h-0 flex-1 flex-col">
             <MessageList
               messages={messages}
+              diskDeliverables={diskDeliverables?.items || []}
               streaming={streaming}
-              reserveRight={artifactsOpen}
+              reserveRight={showArtifactsDock}
             />
-            {projectId && artifactsOpen ? (
-              <ArtifactsDock projectId={projectId} messages={messages} />
+            {showArtifactsDock ? (
+              <ArtifactsDock
+                projectId={projectId}
+                submissions={submissions}
+                artifacts={artifacts}
+              />
             ) : null}
           </div>
 

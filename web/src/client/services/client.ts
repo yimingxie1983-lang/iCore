@@ -217,6 +217,14 @@ export interface SignedFileUrl {
   expires_at: number
 }
 
+export interface ProjectDeliverable {
+  path: string
+  name: string
+  size: number
+  mtime: number
+  group: string
+}
+
 export interface Role {
   id: string
   name: string
@@ -660,6 +668,9 @@ export type FileRenderKind =
   | 'csv'
   | 'json'
   | 'pdf'
+  | 'docx'
+  | 'xlsx'
+  | 'pptx'
   | 'download'
 
 export interface PresentedFile {
@@ -702,6 +713,39 @@ export type FilePreviewResp =
       truncated: boolean
       total_rows_returned: number
       delimiter: string
+    }
+  | {
+      kind: 'docx'
+      path: string
+      size: number
+      mime: string
+      paragraphs: string[]
+      tables: string[][][]
+      text: string
+      truncated: boolean
+    }
+  | {
+      kind: 'xlsx'
+      path: string
+      size: number
+      mime: string
+      sheets: Array<{
+        name: string
+        columns: string[]
+        rows: string[][]
+        truncated: boolean
+      }>
+      text: string
+      truncated: boolean
+    }
+  | {
+      kind: 'pptx'
+      path: string
+      size: number
+      mime: string
+      slides: Array<{ index: number; title: string; body: string }>
+      text: string
+      truncated: boolean
     }
 
 export const api = {
@@ -1324,6 +1368,49 @@ export const api = {
     http
       .post<SignedFileUrl>(`/projects/${projectId}/files/sign`, { path, download })
       .then((r) => r.data),
+
+  listProjectDeliverables: (projectId: string) =>
+    http
+      .get<{ items: ProjectDeliverable[] }>(`/projects/${projectId}/files/deliverables`)
+      .then((r) => r.data),
+
+  downloadProjectFile: async (projectId: string, path: string, filename: string) => {
+    const normalized = path.replace(/\\/g, '/').replace(/^\/+/, '')
+    const candidates = [normalized]
+    if (normalized.startsWith('workspace/')) {
+      candidates.push(normalized.slice('workspace/'.length))
+    } else if (normalized) {
+      candidates.push(`workspace/${normalized}`)
+    }
+    const unique = [...new Set(candidates.filter(Boolean))]
+    let last: unknown
+    for (const candidate of unique) {
+      try {
+        const resp = await http.get<Blob>(`/projects/${projectId}/files/raw`, {
+          params: { path: candidate, download: true },
+          responseType: 'blob',
+        })
+        const blob = resp.data
+        const objectUrl = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = objectUrl
+        a.download = filename || candidate.split('/').pop() || 'download'
+        document.body.appendChild(a)
+        a.click()
+        a.remove()
+        window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000)
+        return
+      } catch (err) {
+        last = err
+        if (err instanceof ApiError && err.status === 404) continue
+        throw err
+      }
+    }
+    if (last instanceof ApiError && last.status === 404) {
+      throw new ApiError(`文件不存在: ${filename || path}`, 404)
+    }
+    throw last instanceof Error ? last : new ApiError('文件不存在', 404)
+  },
 
   previewFile: (
     projectId: string,

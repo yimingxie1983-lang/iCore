@@ -21,10 +21,16 @@ import { Badge } from '@/ui/widgets/ui/badge'
 import { useSessionsStore } from '@/application/state/sessionsStore'
 import { cn } from '@/shared/foundation/utils'
 import TurnSteps from './TurnSteps'
+import PresentedFilesBlock from './PresentedFiles'
 import TypewriterMarkdown from '@/ui/widgets/common/TypewriterMarkdown'
+import {
+  partitionTurnOutputs,
+  type DiskDeliverable,
+} from '@/shared/helpers/conversationArtifacts'
 
 interface Props {
   message: ChatMessage
+  extraDeliverables?: DiskDeliverable[]
 }
 
 function formatRelative(ts: number, now: number): string {
@@ -225,7 +231,15 @@ function MetricBadge({
   )
 }
 
-function AssistantMessage({ message }: { message: ChatMessage }) {
+function AssistantMessage({
+  message,
+  extraDeliverables = [],
+}: {
+  message: ChatMessage
+  extraDeliverables?: DiskDeliverable[]
+}) {
+  const projectId = useSessionsStore((s) => s.projectId)
+  const { stageSegments, final } = partitionTurnOutputs(message, extraDeliverables)
 
   const elapsedNow = useRelativeNow(100, !!message.streaming)
   const elapsedMs = message.streaming
@@ -297,6 +311,7 @@ function AssistantMessage({ message }: { message: ChatMessage }) {
           <TurnSteps
             steps={message.steps}
             streaming={message.streaming && !hasText}
+            stageOutputs={stageSegments}
           />
         )}
 
@@ -324,6 +339,10 @@ function AssistantMessage({ message }: { message: ChatMessage }) {
             )}
           </div>
         )}
+
+        {projectId && final.length > 0 ? (
+          <PresentedFilesBlock projectId={projectId} groups={final} />
+        ) : null}
 
         {}
         {isError && message.errorText && (
@@ -400,9 +419,9 @@ function AssistantMessage({ message }: { message: ChatMessage }) {
   )
 }
 
-export default function MessageBubble({ message }: Props) {
+export default function MessageBubble({ message, extraDeliverables }: Props) {
   if (message.role === 'user') {
     return <UserMessage message={message} />
   }
-  return <AssistantMessage message={message} />
+  return <AssistantMessage message={message} extraDeliverables={extraDeliverables} />
 }

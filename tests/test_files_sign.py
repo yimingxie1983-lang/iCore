@@ -93,3 +93,41 @@ async def test_signed_url_rejects_tamper_and_expired(app, client, tmp_path):
         f"&download=false&exp={exp_past}&sig={s2}"
     )
     assert (await client.get(expired_url)).status_code == 401
+
+
+async def test_sign_and_fetch_nested_unicode_path(app, client, tmp_path):
+    from pathlib import Path
+    from urllib.parse import parse_qs, urlparse
+
+    _, headers, project_id = await _register_and_project(client)
+    from cancer_claw.config import settings
+
+    project_dir = Path(settings.paths.projects_dir) / project_id
+    nested = project_dir / "workspace" / "docs"
+    nested.mkdir(parents=True, exist_ok=True)
+    filename = "00_总交付摘要.md"
+    (nested / filename).write_text("escc-ok", encoding="utf-8")
+    rel = f"workspace/docs/{filename}"
+
+    resp = await client.post(
+        f"/api/projects/{project_id}/files/sign",
+        json={"path": rel, "download": True},
+        headers=headers,
+    )
+    assert resp.status_code == 200, resp.text
+    url = resp.json()["url"]
+    path_q = parse_qs(urlparse(url).query).get("path", [""])[0]
+    assert path_q == rel
+    assert "%2F" not in url
+
+    resp = await client.get(url)
+    assert resp.status_code == 200, resp.text
+    assert resp.text == "escc-ok"
+
+    resp = await client.get(
+        f"/api/projects/{project_id}/files/raw",
+        params={"path": f"docs/{filename}", "download": True},
+        headers=headers,
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.text == "escc-ok"

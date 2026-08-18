@@ -15,12 +15,17 @@ import {
 
 import MessageBubble from './MessageBubble'
 import type { ChatMessage } from '@/application/state/chatStore'
+import {
+  assignDiskFilesToMessages,
+  type DiskDeliverable,
+} from '@/shared/helpers/conversationArtifacts'
 import { useSessionsStore } from '@/application/state/sessionsStore'
 import { Button } from '@/ui/widgets/ui/button'
 import { cn } from '@/shared/foundation/utils'
 
 interface Props {
   messages: ChatMessage[]
+  diskDeliverables?: DiskDeliverable[]
 
   streaming?: boolean
   className?: string
@@ -113,7 +118,13 @@ function EmptyState() {
   )
 }
 
-export default function MessageList({ messages, streaming, className, reserveRight }: Props) {
+export default function MessageList({
+  messages,
+  diskDeliverables = [],
+  streaming,
+  className,
+  reserveRight,
+}: Props) {
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const [following, setFollowing] = useState(true)
 
@@ -126,11 +137,16 @@ export default function MessageList({ messages, streaming, className, reserveRig
 
   const preLoadHeightRef = useRef<number | null>(null)
 
+  const assignedDisk = useMemo(
+    () => assignDiskFilesToMessages(messages, diskDeliverables),
+    [messages, diskDeliverables],
+  )
+
   const contentSignal = useMemo(() => {
     const last = messages[messages.length - 1]
     const lastLen = last ? last.text.length + (last.steps?.length || 0) : 0
-    return `${messages.length}:${lastLen}:${streaming ? 1 : 0}`
-  }, [messages, streaming])
+    return `${messages.length}:${lastLen}:${diskDeliverables.length}:${streaming ? 1 : 0}`
+  }, [messages, diskDeliverables.length, streaming])
 
   useEffect(() => {
     const el = scrollRef.current
@@ -219,7 +235,11 @@ export default function MessageList({ messages, streaming, className, reserveRig
               </div>
             )}
             {messages.map((m) => (
-              <MessageBubble key={m.id} message={m} />
+              <MessageBubble
+                key={m.id}
+                message={m}
+                extraDeliverables={assignedDisk.get(m.id) || []}
+              />
             ))}
           </div>
         )}
