@@ -166,3 +166,52 @@ async def test_preview_md_and_csv_with_workspace_prefix(app, client, tmp_path):
         assert body["kind"] == "csv"
         assert body["columns"] == ["a", "b"]
         assert ["1", "2"] in body["rows"]
+
+
+async def test_raw_maps_outside_path_to_workspace_copy(app, client, tmp_path):
+    from pathlib import Path
+
+    from cancer_claw.config import settings
+
+    _, headers, project_id = await _register_and_project(client)
+    dest = (
+        Path(settings.paths.projects_dir)
+        / project_id
+        / "workspace"
+        / "最终产出物"
+    )
+    dest.mkdir(parents=True, exist_ok=True)
+    payload = b"PK\x03\x04formatted-docx"
+    (dest / "SCI_manuscript_escc_radiomics_formatted.docx").write_bytes(payload)
+
+    resp = await client.get(
+        f"/api/projects/{project_id}/files/raw",
+        params={
+            "path": r"D:/data/escc_radiomics_delivery/SCI_manuscript_escc_radiomics_formatted.docx",
+            "download": True,
+        },
+        headers=headers,
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.content == payload
+
+    missing = await client.get(
+        f"/api/projects/{project_id}/files/raw",
+        params={
+            "path": r"D:/data/escc_radiomics_delivery/not_copied.docx",
+            "download": True,
+        },
+        headers=headers,
+    )
+    assert missing.status_code == 400
+    assert "路径越界" in missing.text
+
+    other = Path(settings.paths.projects_dir) / project_id / "workspace" / "manuscript"
+    other.mkdir(parents=True, exist_ok=True)
+    (other / "only_in_manuscript.md").write_text("keep", encoding="utf-8")
+    wrong = await client.get(
+        f"/api/projects/{project_id}/files/raw",
+        params={"path": "workspace/docs/only_in_manuscript.md", "download": True},
+        headers=headers,
+    )
+    assert wrong.status_code == 404

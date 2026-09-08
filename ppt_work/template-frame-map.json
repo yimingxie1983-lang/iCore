@@ -1,0 +1,91 @@
+{
+  "outputSlides": [
+    {
+      "outputSlide": 1,
+      "sourceSlide": 1,
+      "narrativeRole": "clinical decision-support case study",
+      "reuseMode": "duplicate-slide",
+      "editTargets": [
+        {
+          "id": "sh/547294r6",
+          "name": "标题 1",
+          "action": "delete",
+          "reason": "Empty inherited title placeholder; visible title is handled by sh/ts7md4r2.",
+          "shapeId": "sh/547294r6"
+        },
+        {
+          "id": "sh/k3yl0zql",
+          "name": "副标题 2",
+          "action": "delete",
+          "reason": "Empty inherited subtitle placeholder; no default prompt may remain.",
+          "shapeId": "sh/k3yl0zql"
+        },
+        {
+          "id": "sh/ts7md4r2",
+          "name": "title-11",
+          "action": "rewrite",
+          "reason": "Replace source case title with the clinical-assistance case title.",
+          "shapeId": "sh/ts7md4r2"
+        },
+        {
+          "id": "im/ipofexcz",
+          "name": "图片 7",
+          "action": "delete",
+          "reason": "Replace source-case raster with native, editable content in the same content frame.",
+          "shapeId": "im/ipofexcz"
+        },
+        {
+          "id": "sh/wn6dc7eh",
+          "name": "page-11",
+          "action": "rewrite",
+          "reason": "Update source page marker from 11 to output page 1.",
+          "shapeId": "sh/wn6dc7eh"
+        }
+      ]
+    },
+    {
+      "outputSlide": 2,
+      "sourceSlide": 1,
+      "narrativeRole": "clinical-trial design and data-governance case study",
+      "reuseMode": "duplicate-slide",
+      "editTargets": [
+        {
+          "id": "sh/547294r6",
+          "name": "标题 1",
+          "action": "delete",
+          "reason": "Empty inherited title placeholder; visible title is handled by the duplicated title textbox.",
+          "shapeId": "sh/547294r6"
+        },
+        {
+          "id": "sh/k3yl0zql",
+          "name": "副标题 2",
+          "action": "delete",
+          "reason": "Empty inherited subtitle placeholder; no default prompt may remain.",
+          "shapeId": "sh/k3yl0zql"
+        },
+        {
+          "id": "sh/ts7md4r2",
+          "name": "title-11",
+          "action": "rewrite",
+          "reason": "Replace source case title with the drug-trial case title.",
+          "shapeId": "sh/ts7md4r2"
+        },
+        {
+          "id": "im/ipofexcz",
+          "name": "图片 7",
+          "action": "delete",
+          "reason": "Replace source-case raster with native, editable trial-design content in the same content frame.",
+          "shapeId": "im/ipofexcz"
+        },
+        {
+          "id": "sh/wn6dc7eh",
+          "name": "page-11",
+          "action": "rewrite",
+          "reason": "Update source page marker from 11 to output page 2.",
+          "shapeId": "sh/wn6dc7eh"
+        }
+      ]
+    }
+  ],
+  "omittedSourceSlides": []
+}

@@ -14,6 +14,8 @@ MENU_USERS = "menu.users"
 MENU_ROLES = "menu.roles"
 MENU_EVOLUTION = "menu.evolution"
 MENU_PROJECT_MANAGE = "menu.project_manage"
+MENU_INSIGHTS = "menu.insights"
+MENU_TRAIN = "menu.train"
 
 PROJECT_CREATE = "project.create"
 PROJECT_SHARE = "project.share"
@@ -44,6 +46,8 @@ PERMISSION_CATALOG: list[dict] = [
             {"key": MENU_ROLES, "label": "角色管理"},
             {"key": MENU_EVOLUTION, "label": "进化审批"},
             {"key": MENU_PROJECT_MANAGE, "label": "项目管理（管理员）"},
+            {"key": MENU_INSIGHTS, "label": "行业资讯"},
+            {"key": MENU_TRAIN, "label": "模型训练（对话内）"},
         ],
     },
     {
@@ -78,6 +82,8 @@ DEFAULT_USER_PERMISSIONS: frozenset[str] = frozenset(
         MENU_MEMORY,
         MENU_CREDITS,
         MENU_MARKET,
+        MENU_INSIGHTS,
+        MENU_TRAIN,
         PROJECT_CREATE,
         PROJECT_SHARE,
         PROJECT_PUBLISH,

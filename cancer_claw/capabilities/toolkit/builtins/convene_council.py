@@ -162,6 +162,7 @@ class ConveneCouncilTool(BaseTool):
                                             "data_analyst（数据分析师 📊）/ "
                                             "writer（学术写作 ✍️）/ "
                                             "coder（编码工程师 💻）/ "
+                                            "ml_engineer（模型训练工程师 ⚡）/ "
                                             "critical_reviewer（仲裁评审员 ⚖️，仅用于 arbiter）。"
                                             "MDT 议会专用（按病种招募 4-6 个核心 + 视需补充支持科室）："
                                             "med_oncologist（肿瘤内科 💊）/ "

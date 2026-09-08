@@ -13,6 +13,7 @@ import structlog
 logger = structlog.get_logger()
 
 _HEADER_RESERVED_BYTES = 1024
+HEADER_RESERVED_BYTES = _HEADER_RESERVED_BYTES
 
 _METADATA_REFRESH_INTERVAL = 5.0
 

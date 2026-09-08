@@ -1,7 +1,7 @@
 
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useDropzone } from 'react-dropzone'
 import {
@@ -17,6 +17,7 @@ import {
   Files,
   FolderOpen,
   Gauge,
+  ListOrdered,
   Loader2,
   PanelRightOpen,
   Paperclip,
@@ -28,7 +29,7 @@ import {
   X,
 } from 'lucide-react'
 
-import { api, type AttachedFileMeta, type Project } from '@/client/services/client'
+import { api, type AttachedFileMeta, type Project, type UploadPrivacyAction } from '@/client/services/client'
 import { streamChat } from '@/client/services/sse'
 import { abortLiveSubForSession, useSessionsStore } from '@/application/state/sessionsStore'
 import { useChatStore } from '@/application/state/chatStore'
@@ -37,6 +38,7 @@ import EventTimeline from './chat/EventTimeline'
 import ReasoningPane from './chat/ReasoningPane'
 import StatsPanel from './chat/StatsPanel'
 import ArtifactsDock from './chat/ArtifactsDock'
+import StepsDetailSheet from './chat/StepsDetailSheet'
 import {
   collectConversationArtifacts,
   latestFinalArtifacts,
@@ -69,32 +71,57 @@ import {
 import CreateProjectDialog from '@/ui/widgets/common/CreateProjectDialog'
 import { toast } from '@/ui/widgets/ui/sonner'
 import { cn } from '@/shared/foundation/utils'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/ui/widgets/ui/dialog'
 
 const MASTER_AGENT_ID = 'claw_master'
 
-type AttachmentStatus = 'uploading' | 'success' | 'error'
+const PRIVACY_HIT_LABELS: Record<string, string> = {
+  id_card: '身份证',
+  phone: '手机号',
+  landline: '电话',
+  mrn: '病历号',
+  name: '姓名',
+  address: '地址',
+  email: '邮箱',
+  bank_card: '银行卡',
+  passport: '护照',
+  dicom_patient_tag: 'DICOM患者标签',
+}
+
+type AttachmentStatus = 'uploading' | 'reviewing' | 'success' | 'error'
 type AttachmentKind = 'image' | 'file'
 
 interface AttachmentItem {
-
   id: string
-
   file: File
-
   name: string
-
   size: number
-
   progress: number
   status: AttachmentStatus
-
   path?: string
-
   error?: string
-
   kind: AttachmentKind
-
   previewUrl?: string
+  privacyHits?: Record<string, number>
+  privacyTotal?: number
+  privacyMessage?: string
+}
+
+interface PrivacyReviewState {
+  attachmentId: string
+  projectId: string
+  name: string
+  path: string
+  hits: Record<string, number>
+  total: number
+  message: string
 }
 
 const IMAGE_EXTS = new Set(['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'])
@@ -133,21 +160,26 @@ function AttachmentChip({
 }) {
   const statusClasses: Record<AttachmentStatus, string> = {
     uploading: 'border-border bg-muted/60',
+    reviewing: 'border-amber-500/40 bg-amber-50',
     success: 'border-emerald-500/30 bg-emerald-50',
     error: 'border-rose-500/30 bg-rose-50',
   }
   const Icon =
     item.status === 'uploading'
       ? Loader2
-      : item.status === 'error'
+      : item.status === 'reviewing'
         ? AlertCircle
-        : CheckCircle2
+        : item.status === 'error'
+          ? AlertCircle
+          : CheckCircle2
   const iconColor =
     item.status === 'uploading'
       ? 'text-muted-foreground animate-spin'
-      : item.status === 'error'
-        ? 'text-rose-600'
-        : 'text-emerald-600'
+      : item.status === 'reviewing'
+        ? 'text-amber-600'
+        : item.status === 'error'
+          ? 'text-rose-600'
+          : 'text-emerald-600'
 
   const isImage = item.kind === 'image' && !!item.previewUrl
 
@@ -171,7 +203,11 @@ function AttachmentChip({
       )}
       <span className="min-w-0 flex-1 truncate font-medium text-foreground">{item.name}</span>
       <span className="shrink-0 text-[10.5px] text-muted-foreground">
-        {item.status === 'uploading' ? `${item.progress}%` : humanSize(item.size)}
+        {item.status === 'uploading'
+          ? `${item.progress}%`
+          : item.status === 'reviewing'
+            ? '待确认脱敏'
+            : humanSize(item.size)}
       </span>
       {item.status === 'error' && (
         <button
@@ -396,8 +432,19 @@ export default function ChatWorkbench() {
 
   const [projectId, setProjectId] = useState<string>(paramProjectId || '')
   const [input, setInput] = useState('')
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  // 从行业资讯墙「问 Agent」跳转过来时，预填首条消息（不自动发送）
+  useEffect(() => {
+    const ask = searchParams.get('ask')
+    if (ask) {
+      setInput((prev) => prev || ask)
+      setSearchParams({}, { replace: true })
+    }
+  }, [searchParams, setSearchParams])
   const [createOpen, setCreateOpen] = useState(false)
   const [insightsOpen, setInsightsOpen] = useState(false)
+  const [stepsOpen, setStepsOpen] = useState(false)
   const [artifactsOpen, setArtifactsOpen] = useState(true)
   const abortRef = useRef<Map<string | null, AbortController>>(new Map())
   const fileInputRef = useRef<HTMLInputElement | null>(null)
@@ -408,6 +455,10 @@ export default function ChatWorkbench() {
   const refreshSessionList = useSessionsStore((s) => s.refreshSessionList)
 
   const [attachments, setAttachments] = useState<AttachmentItem[]>([])
+  const [privacyReview, setPrivacyReview] = useState<PrivacyReviewState | null>(null)
+  const [privacyBusy, setPrivacyBusy] = useState(false)
+  const privacyQueueRef = useRef<PrivacyReviewState[]>([])
+
   const updateAttachment = useCallback(
     (id: string, patch: Partial<AttachmentItem>) => {
       setAttachments((arr) =>
@@ -417,12 +468,50 @@ export default function ChatWorkbench() {
     [],
   )
 
+  const dequeuePrivacyReview = useCallback(() => {
+    const next = privacyQueueRef.current.shift() || null
+    setPrivacyReview(next)
+  }, [])
+
+  const enqueuePrivacyReview = useCallback((item: PrivacyReviewState) => {
+    setPrivacyReview((cur) => {
+      if (cur) {
+        privacyQueueRef.current.push(item)
+        return cur
+      }
+      return item
+    })
+  }, [])
+
   const uploadOne = useCallback(
     async (pid: string, item: AttachmentItem) => {
       try {
         const resp = await api.uploadAttachment(pid, item.file, (pct) =>
           updateAttachment(item.id, { progress: pct }),
         )
+        if (resp.status === 'privacy_review') {
+          updateAttachment(item.id, {
+            status: 'reviewing',
+            progress: 100,
+            path: resp.path,
+            name: resp.name,
+            size: resp.size,
+            privacyHits: resp.privacy_hits,
+            privacyTotal: resp.privacy_total,
+            privacyMessage: resp.message,
+            error: undefined,
+          })
+          enqueuePrivacyReview({
+            attachmentId: item.id,
+            projectId: pid,
+            name: resp.name,
+            path: resp.path,
+            hits: resp.privacy_hits || {},
+            total: resp.privacy_total || 0,
+            message: resp.message || '检测到敏感信息，请确认是否继续上传并脱敏。',
+          })
+          return
+        }
         updateAttachment(item.id, {
           status: 'success',
           progress: 100,
@@ -437,7 +526,55 @@ export default function ChatWorkbench() {
         toast.error(`上传失败：${item.name} · ${msg}`)
       }
     },
-    [updateAttachment],
+    [enqueuePrivacyReview, updateAttachment],
+  )
+
+  const resolvePrivacyReview = useCallback(
+    async (action: UploadPrivacyAction) => {
+      if (!privacyReview) return
+      const current = privacyReview
+      setPrivacyBusy(true)
+      try {
+        const resp = await api.confirmUploadPrivacy(
+          current.projectId,
+          current.path,
+          action,
+        )
+        if (action === 'abort') {
+          updateAttachment(current.attachmentId, {
+            status: 'error',
+            error: '已取消上传',
+            path: undefined,
+            size: 0,
+          })
+          toast.message(`已取消上传「${current.name}」`)
+        } else {
+          updateAttachment(current.attachmentId, {
+            status: 'success',
+            progress: 100,
+            path: resp.path,
+            name: resp.name,
+            size: resp.size,
+            error: undefined,
+          })
+          toast.success(
+            action === 'desensitize'
+              ? `已脱敏并保留「${current.name}」`
+              : `已保留原文件「${current.name}」（未脱敏）`,
+          )
+        }
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : '处理失败'
+        updateAttachment(current.attachmentId, { status: 'error', error: msg })
+        toast.error(`隐私确认失败：${msg}`)
+      } finally {
+        setPrivacyBusy(false)
+        setPrivacyReview(null)
+        // 下一帧再弹出队列中的下一项，避免同一次渲染打架
+        window.setTimeout(() => dequeuePrivacyReview(), 0)
+      }
+    },
+    [dequeuePrivacyReview, privacyReview, updateAttachment],
   )
 
   const handleFiles = useCallback(
@@ -483,12 +620,20 @@ export default function ChatWorkbench() {
     async (id: string) => {
       const target = attachments.find((a) => a.id === id)
       if (!target) return
-      if (target.status === 'success' && target.path) {
-        if (!window.confirm(`确认从工作区删除「${target.name}」？此操作不可撤销。`)) {
+      if ((target.status === 'success' || target.status === 'reviewing') && target.path) {
+        const tip =
+          target.status === 'reviewing'
+            ? `确认取消「${target.name}」的上传并删除临时文件？`
+            : `确认从工作区删除「${target.name}」？此操作不可撤销。`
+        if (!window.confirm(tip)) {
           return
         }
         try {
-          await api.deleteAttachment(projectId, target.path)
+          if (target.status === 'reviewing') {
+            await api.confirmUploadPrivacy(projectId, target.path, 'abort')
+          } else {
+            await api.deleteAttachment(projectId, target.path)
+          }
         } catch (e: unknown) {
           const msg = e instanceof Error ? e.message : '删除失败'
           toast.error(`删除失败：${msg}`)
@@ -504,8 +649,16 @@ export default function ChatWorkbench() {
         }
       }
       setAttachments((arr) => arr.filter((a) => a.id !== id))
+      if (privacyReview?.attachmentId === id) {
+        setPrivacyReview(null)
+        window.setTimeout(() => dequeuePrivacyReview(), 0)
+      } else {
+        privacyQueueRef.current = privacyQueueRef.current.filter(
+          (q) => q.attachmentId !== id,
+        )
+      }
     },
-    [attachments, projectId],
+    [attachments, dequeuePrivacyReview, privacyReview, projectId],
   )
 
   const { getRootProps, isDragActive } = useDropzone({
@@ -516,7 +669,9 @@ export default function ChatWorkbench() {
     disabled: !projectId,
   })
 
-  const hasUploading = attachments.some((a) => a.status === 'uploading')
+  const hasUploading = attachments.some(
+    (a) => a.status === 'uploading' || a.status === 'reviewing',
+  )
 
   const messages = useChatStore((s) => s.messages)
   const { submissions } = useMemo(
@@ -551,6 +706,19 @@ export default function ChatWorkbench() {
     [messages, diskDeliverables],
   )
   const hasDockFiles = submissions.length > 0 || artifacts.length > 0
+  const stepsFocusMessage = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i]
+      if (m.role !== 'assistant') continue
+      if (m.streaming || (m.steps && m.steps.length > 0)) return m
+    }
+    return null
+  }, [messages])
+  const hasStepsToInspect = Boolean(
+    stepsFocusMessage &&
+      ((stepsFocusMessage.steps && stepsFocusMessage.steps.length > 0) ||
+        stepsFocusMessage.streaming),
+  )
 
   const { data: projects } = useQuery({
     queryKey: ['projects'],
@@ -745,6 +913,24 @@ export default function ChatWorkbench() {
         />
 
         <PersonaSwitcher agentId={MASTER_AGENT_ID} />
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant={stepsOpen ? 'secondary' : 'outline'}
+              size="sm"
+              onClick={() => setStepsOpen(true)}
+              disabled={noProjectSelected || !hasStepsToInspect}
+            >
+              <ListOrdered />
+              执行步骤
+              {hasStepsToInspect && stepsFocusMessage?.steps?.length
+                ? ` · ${stepsFocusMessage.steps.length}`
+                : ''}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>查看完整执行步骤与工具详情</TooltipContent>
+        </Tooltip>
 
         <div className="flex-1" />
 
@@ -1028,7 +1214,86 @@ export default function ChatWorkbench() {
       )}
 
       {}
+      <StepsDetailSheet
+        open={stepsOpen}
+        onOpenChange={setStepsOpen}
+        message={stepsFocusMessage}
+        streaming={streaming}
+      />
+
+      {}
       <CreateProjectDialog open={createOpen} onOpenChange={setCreateOpen} />
+
+      <Dialog
+        open={!!privacyReview}
+        onOpenChange={(open) => {
+          if (!open && privacyReview && !privacyBusy) {
+            void resolvePrivacyReview('abort')
+          }
+        }}
+      >
+        <DialogContent className="max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
+          <DialogHeader>
+            <DialogTitle>敏感信息确认</DialogTitle>
+            <DialogDescription className="text-[13px] leading-relaxed">
+              文件「{privacyReview?.name}」可能含有敏感数据。请先确认是否继续上传；若继续，再选择是否脱敏。
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-lg border border-amber-500/30 bg-amber-50/80 px-3 py-2 text-[12.5px] leading-relaxed text-amber-950">
+            {(privacyReview?.total ?? 0) > 0 ? (
+              <>
+                <div className="font-medium">
+                  共 {privacyReview?.total ?? 0} 处敏感命中
+                </div>
+                <ul className="mt-1.5 space-y-0.5 text-amber-900/90">
+                  {Object.entries(privacyReview?.hits || {})
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([k, v]) => (
+                      <li key={k}>
+                        · {PRIVACY_HIT_LABELS[k] || k}：{v} 处
+                      </li>
+                    ))}
+                </ul>
+              </>
+            ) : (
+              <div className="font-medium">
+                为加快上传，未做全量排查。文本 / 表格 / 病历类文件建议优先选择「脱敏后保留」。
+              </div>
+            )}
+            {privacyReview?.message ? (
+              <p className="mt-2 text-[11.5px] text-amber-800/90">{privacyReview.message}</p>
+            ) : null}
+          </div>
+          <DialogFooter className="gap-2 sm:flex-col sm:space-x-0">
+            <Button
+              type="button"
+              disabled={privacyBusy}
+              onClick={() => void resolvePrivacyReview('desensitize')}
+              className="w-full"
+            >
+              {privacyBusy ? '处理中…' : '继续上传并脱敏'}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={privacyBusy}
+              onClick={() => void resolvePrivacyReview('keep')}
+              className="w-full"
+            >
+              继续上传（不脱敏）
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={privacyBusy}
+              onClick={() => void resolvePrivacyReview('abort')}
+              className="w-full text-muted-foreground"
+            >
+              取消上传
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {}
       <Sheet open={insightsOpen} onOpenChange={setInsightsOpen}>

@@ -7,6 +7,7 @@ import hashlib
 import hmac
 import io
 import mimetypes
+import os
 import time
 from pathlib import Path
 from typing import Any
@@ -92,6 +93,72 @@ def _file_path_candidates(raw_path: str) -> list[str]:
     return unique
 
 
+_BASENAME_SKIP_DIRS = {
+    "scripts",
+    "logs",
+    "charters",
+    ".tool_cache",
+    "pip",
+    "microsoft",
+    "__pycache__",
+    ".git",
+    "node_modules",
+    ".venv",
+    "voxfeat",
+    "uploads",
+    "sandbox_home",
+    ".pytest_cache",
+}
+
+_BASENAME_FOLDER_RANK = {
+    "最终产出物": 0,
+    "manuscript": 1,
+    "docs": 2,
+    "habitat": 3,
+}
+
+
+def _find_workspace_by_basename(root: Path, name: str) -> Path | None:
+    """仅在项目 workspace 内按文件名查找；不打开项目外路径。"""
+    if not name or name in {".", ".."} or "/" in name or "\\" in name:
+        return None
+    if name.startswith("."):
+        return None
+    workspace = (root / "workspace").resolve()
+    if not workspace.is_dir():
+        return None
+    hits: list[Path] = []
+    for dirpath, dirnames, filenames in os.walk(workspace):
+        dirnames[:] = [
+            d
+            for d in dirnames
+            if d.lower() not in _BASENAME_SKIP_DIRS and not d.startswith(".")
+        ]
+        if name not in filenames:
+            continue
+        candidate = Path(dirpath) / name
+        try:
+            resolved = candidate.resolve()
+        except OSError:
+            continue
+        if _is_descendant(resolved, root) and resolved.is_file():
+            hits.append(resolved)
+    if not hits:
+        return None
+
+    def rank(path: Path) -> tuple:
+        try:
+            rel = path.relative_to(root).as_posix()
+        except ValueError:
+            rel = path.as_posix()
+        parts = [p for p in rel.split("/") if p]
+        folder = parts[1] if len(parts) > 1 else ""
+        return (_BASENAME_FOLDER_RANK.get(folder, 9), len(parts), rel.lower())
+
+    hits.sort(key=rank)
+    return hits[0]
+
+
 def _resolve_safe_file(project_id: str, raw_path: str) -> Path:
 
     raw = (raw_path or "").strip()
@@ -115,15 +182,25 @@ def _resolve_safe_file(project_id: str, raw_path: str) -> Path:
         if target.exists():
             not_file = rel
 
-    if not_file:
-        raise HTTPException(status_code=400, detail=f"路径不是文件: {not_file}")
     if saw_escape:
+        posix = raw.replace("\\", "/")
+        hit = _find_workspace_by_basename(root, Path(posix).name)
+        if hit is not None:
+            logger.info(
+                "files_resolved_workspace_basename",
+                project_id=project_id,
+                requested=raw,
+                resolved=str(hit),
+            )
+            return hit
         logger.warning(
             "files_path_escape_blocked",
             project_id=project_id,
             requested=raw,
         )
         raise HTTPException(status_code=400, detail="路径越界，仅允许访问项目根目录之下的文件")
+    if not_file:
+        raise HTTPException(status_code=400, detail=f"路径不是文件: {not_file}")
     raise HTTPException(status_code=404, detail=f"文件不存在: {raw}")
 
 def _guess_mime(path: Path) -> str:

@@ -1,7 +1,7 @@
 
 
 import { useEffect, useState } from 'react'
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom'
 import AppLayout from './ui/widgets/Layout/AppLayout'
 import ChatWorkbench from './ui/views/ChatWorkbench'
 import Projects from './ui/views/Projects'
@@ -20,7 +20,10 @@ import AdminEvolution from './ui/views/admin/Evolution'
 import AdminMonitor from './ui/views/admin/Monitor'
 import AdminAuthEvents from './ui/views/admin/AuthEvents'
 import AdminProjects from './ui/views/admin/Projects'
+import WechatChannel from './ui/views/WechatChannel'
 import Market from './ui/views/Market'
+import Insights from './ui/views/Insights'
+import Dashboard from './ui/views/Dashboard'
 import { api, type AuthUser } from './client/services/client'
 import {
   useAuthStore,
@@ -88,6 +91,11 @@ function RequirePermission({
   return <>{children}</>
 }
 
+function TrainToChatRedirect() {
+  const { projectId } = useParams()
+  return <Navigate to={projectId ? `/chat/${projectId}` : '/chat'} replace />
+}
+
 function App() {
   return (
     <Routes>
@@ -100,9 +108,11 @@ function App() {
           </RequireAuth>
         }
       >
-        <Route index element={<Navigate to="/chat" replace />} />
+        <Route index element={<Dashboard />} />
         <Route path="/chat" element={<ChatWorkbench />} />
         <Route path="/chat/:projectId" element={<ChatWorkbench />} />
+        <Route path="/train" element={<Navigate to="/chat" replace />} />
+        <Route path="/train/:projectId" element={<TrainToChatRedirect />} />
         <Route path="/projects" element={<Projects />} />
         <Route path="/projects/new" element={<ProjectCreate />} />
         <Route path="/agents" element={<Agents />} />
@@ -110,12 +120,21 @@ function App() {
         <Route path="/providers" element={<Providers />} />
         <Route path="/memory" element={<Memory />} />
         <Route path="/credits" element={<Credits />} />
+        <Route path="/channels/wechat" element={<WechatChannel />} />
         <Route path="/account" element={<Account />} />
         <Route
           path="/market"
           element={
             <RequirePermission perm="market.browse">
               <Market />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="/insights"
+          element={
+            <RequirePermission perm="menu.insights">
+              <Insights />
             </RequirePermission>
           }
         />

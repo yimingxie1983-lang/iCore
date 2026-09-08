@@ -2,7 +2,6 @@
 
 import asyncio
 import os
-from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -13,84 +12,14 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from cancer_claw.config import settings
-from cancer_claw.db import init_db, close_db
+from cancer_claw.runtime import bootstrap, shutdown
 
 logger = structlog.get_logger()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
 
-    logger.info("cancer_claw_starting", version=settings.app.version)
-
-    Path(settings.paths.data_dir).mkdir(parents=True, exist_ok=True)
-    Path(settings.paths.projects_dir).mkdir(parents=True, exist_ok=True)
-    Path(settings.paths.agents_dir).mkdir(parents=True, exist_ok=True)
-    Path(settings.paths.library_crafts_dir).mkdir(parents=True, exist_ok=True)
-    Path(settings.paths.personas_dir).mkdir(parents=True, exist_ok=True)
-
-
-
-
-    try:
-        pool_size = int(os.environ.get("CANCER_CLAW_THREADPOOL", "0")) or (
-            max(32, (os.cpu_count() or 4) * 8)
-        )
-        loop = asyncio.get_running_loop()
-        loop.set_default_executor(ThreadPoolExecutor(max_workers=pool_size,
-                                                      thread_name_prefix="cc-io"))
-        logger.info("threadpool_configured", max_workers=pool_size)
-    except Exception as e:
-        logger.warning("threadpool_config_failed", error=str(e))
-
-    await init_db()
-    logger.info(
-        "database_initialized",
-        backend="postgres" if settings.database.is_postgres else "sqlite",
-        target=settings.database.url or settings.database.path,
-    )
-
-
-    if settings.redis.enabled:
-        try:
-            from cancer_claw.services.platform.redis_client import get_redis
-            await get_redis()
-            logger.info("redis_initialized", url=settings.redis.url)
-        except Exception as e:
-            logger.error("redis_init_failed", error=str(e), exc_info=True)
-
-    await _ensure_providers_yaml()
-    await _ensure_system_agents()
-    await _ensure_auth_bootstrap()
-    await _ensure_rbac_bootstrap()
-
-
-
-
-    try:
-        from cancer_claw.interfaces.routes.skill_drafts import rehydrate_approved_skills
-        _n = await rehydrate_approved_skills()
-        logger.info("approved_skills_rehydrated", count=_n)
-    except Exception as e:
-        logger.warning("approved_skills_rehydrate_failed", error=str(e))
-
-
-
-
-    try:
-        from cancer_claw.resources.knowledge.craft_store import load_all_crafts
-        _recs = await asyncio.to_thread(load_all_crafts)
-        logger.info("library_loaded", crafts=len(_recs))
-    except Exception as e:
-        logger.warning("library_load_failed_at_startup", error=str(e))
-
-
-    try:
-        from cancer_claw.capabilities.toolkit.registry import get_registry
-        _registry = get_registry()
-        logger.info("tool_registry_warmed_up", count=_registry.count)
-    except Exception as e:
-        logger.warning("tool_registry_warmup_failed", error=str(e))
-
+    await bootstrap(connect_redis=True)
     logger.info(
         "cancer_claw_ready",
         host=settings.app.host,
@@ -100,130 +29,7 @@ async def lifespan(app: FastAPI):
 
     yield
 
-
-    try:
-        from cancer_claw.capabilities.toolkit.executor import close_all_executors
-        await close_all_executors()
-    except Exception as e:
-        logger.error("sandbox_shutdown_error", error=str(e), exc_info=True)
-
-
-    if settings.redis.enabled:
-        try:
-            from cancer_claw.services.platform.redis_client import close_redis
-            await close_redis()
-        except Exception as e:
-            logger.warning("redis_close_error", error=str(e))
-
-    await close_db()
-    logger.info("cancer_claw_stopped")
-
-async def _ensure_providers_yaml() -> None:
-
-    initial = [
-        {
-            "id": pc.id,
-            "name": pc.name,
-            "base_url": pc.base_url,
-            "api_key": pc.api_key,
-            "models": [{"id": m.id, "role": m.role} for m in pc.models],
-            "enabled": bool(pc.enabled),
-            "priority": int(pc.priority),
-        }
-        for pc in settings.providers
-    ]
-    from cancer_claw.services.model_router import providers_store
-    created = await providers_store.ensure_initialized(initial)
-    if created:
-        logger.info("providers_yaml_seeded_from_config", count=len(initial))
-
-async def _ensure_auth_bootstrap() -> None:
-
-    from cancer_claw.services.identity import repo
-    from cancer_claw.services.identity.deps import get_auth_secret
-
-
-    get_auth_secret()
-
-    if not settings.auth.enabled:
-        logger.info("auth_disabled_local_superuser_mode")
-        return
-
-    try:
-        if await repo.count_users() > 0:
-            return
-        username = (settings.auth.bootstrap_admin_username or "").strip()
-        password = settings.auth.bootstrap_admin_password or ""
-        if not username or not password:
-            logger.warning(
-                "auth_bootstrap_skipped_no_password",
-                hint="设置 CANCER_CLAW_AUTH_BOOTSTRAP_PASSWORD 或开启自助注册（首个用户即管理员）",
-            )
-            return
-        await repo.create_user(
-            username=username, password=password, role=repo.ROLE_ADMIN
-        )
-        logger.info("auth_bootstrap_admin_created", username=username)
-    except Exception as e:
-        logger.error("auth_bootstrap_failed", error=str(e), exc_info=True)
-
-async def _ensure_rbac_bootstrap() -> None:
-
-    from cancer_claw.services.identity import permissions as perms
-    from cancer_claw.services.identity import repo
-
-    try:
-        for name, (desc, perm_set) in perms.SYSTEM_ROLE_SEEDS.items():
-            existing = await repo.get_role_by_name(name)
-            if existing:
-                continue
-            await repo.create_role(
-                name=name,
-                description=desc,
-                permissions=sorted(perm_set),
-                is_system=True,
-            )
-            logger.info("system_role_seeded", name=name)
-    except Exception as e:
-        logger.warning("rbac_bootstrap_failed", error=str(e))
-
-async def _ensure_system_agents() -> None:
-
-    from datetime import datetime, timezone
-
-    from cancer_claw.agent.engine.system_agents import SYSTEM_AGENTS
-    from cancer_claw.db import get_db
-    from cancer_claw.resources.prompt_templates import load_prompt
-
-    db = await get_db()
-    agents_dir = Path(settings.paths.agents_dir)
-    now = datetime.now(timezone.utc).isoformat()
-
-    for spec in SYSTEM_AGENTS:
-        agent_dir = agents_dir / spec.id
-        agent_dir.mkdir(parents=True, exist_ok=True)
-        (agent_dir / "private_memory").mkdir(exist_ok=True)
-        (agent_dir / "memory" / "digests").mkdir(parents=True, exist_ok=True)
-
-        soul_path = agent_dir / "soul.md"
-        if not soul_path.is_file():
-            soul_content = load_prompt(spec.soul_prompt)
-            soul_path.write_text(soul_content, encoding="utf-8")
-
-        cursor = await db.execute("SELECT id FROM agents WHERE id = ?", (spec.id,))
-        if await cursor.fetchone():
-            continue
-
-        await db.execute(
-            """INSERT INTO agents (id, name, description, soul_path, craft_ids,
-                                   source, status, created_at, updated_at)
-               VALUES (?, ?, ?, ?, '[]', ?, 'idle', ?, ?)""",
-            (spec.id, spec.name, spec.description, str(soul_path),
-             spec.source, now, now),
-        )
-        logger.info("system_agent_initialized", id=spec.id, role=spec.role)
-
-    await db.commit()
+    await shutdown()
 
 app = FastAPI(
     title="iCore",
@@ -271,6 +77,9 @@ from cancer_claw.interfaces.routes.market import router as market_router
 from cancer_claw.interfaces.routes.skill_drafts import router as skill_drafts_router
 from cancer_claw.interfaces.routes.billing import router as billing_router
 from cancer_claw.interfaces.routes.metrics import router as metrics_router
+from cancer_claw.interfaces.routes.channels import router as channels_router
+from cancer_claw.interfaces.routes.insights import router as insights_router
+from cancer_claw.interfaces.routes.train import router as train_router
 
 from cancer_claw.services.identity.deps import get_current_user as _require_login
 
@@ -307,6 +116,11 @@ app.include_router(skill_drafts_router, prefix="/api", tags=["进化审批"])
 app.include_router(billing_router, prefix="/api", tags=["计费 / 积分"])
 
 app.include_router(metrics_router, prefix="/api", tags=["系统监控"])
+app.include_router(channels_router, prefix="/api", tags=["微信渠道"])
+app.include_router(
+    insights_router, prefix="/api", tags=["行业资讯"], dependencies=_login_dep
+)
+app.include_router(train_router, prefix="/api", tags=["模型训练"])
 
 @app.get("/api", tags=["系统"])
 async def root():
@@ -382,6 +196,17 @@ async def index():
         "status": "running",
         "hint": "前端尚未构建（缺 web/dist），访问 /api 查看 API 信息",
     }
+
+
+# 未知 /api/* 统一 404（避免被下方 SPA GET 通配抢到而返回误导性的 405 Method Not Allowed）
+@app.api_route(
+    "/api/{full_path:path}",
+    methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"],
+    include_in_schema=False,
+)
+async def api_not_found(full_path: str):
+    raise HTTPException(status_code=404, detail=f"Not Found: /api/{full_path}")
+
 
 @app.get("/{full_path:path}", include_in_schema=False)
 async def spa_fallback(full_path: str):

@@ -13,6 +13,12 @@ VALID_PROJECT_STATUSES = frozenset(
     {PROJECT_STATUS_ACTIVE, PROJECT_STATUS_PAUSED, PROJECT_STATUS_FROZEN}
 )
 
+PROJECT_SOURCE_WEB = "web"
+PROJECT_SOURCE_CLI_LOCAL = "cli_local"
+# 网页项目列表排除 CLI 把当前目录登记进来的本地工作区
+NOT_CLI_LOCAL_SQL = " AND COALESCE(source, 'web') != 'cli_local'"
+NOT_CLI_LOCAL_SQL_P = " AND COALESCE(p.source, 'web') != 'cli_local'"
+
 
 async def get_project_status(project_id: str) -> str | None:
     """返回项目状态；项目不存在时返回 None。"""
@@ -78,6 +84,7 @@ async def delete_project_full(project_id: str) -> None:
         await db.execute("DELETE FROM chat_sessions WHERE project_id = ?", (project_id,))
         await db.execute("DELETE FROM conversation_history WHERE project_id = ?", (project_id,))
         await db.execute("DELETE FROM agent_events WHERE project_id = ?", (project_id,))
+        await db.execute("DELETE FROM train_runs WHERE project_id = ?", (project_id,))
         await db.execute("DELETE FROM projects WHERE id = ?", (project_id,))
 
     try:

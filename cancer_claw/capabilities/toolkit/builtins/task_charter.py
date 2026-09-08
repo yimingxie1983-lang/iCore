@@ -767,12 +767,20 @@ class TaskCharterTool(BaseTool):
             )
         else:
             nxt = doc.stages[next_idx]
-            output = (
-                f"阶段 {cur_idx + 1} 「{cur.name}」完成 ✓；"
-                f"阶段 {next_idx + 1} 「{nxt.name}」已切换为 ▶ doing。"
-                f"接下来请调用 attempt_completion 让本轮流自然结束，"
-                f"框架会触发进化链把本阶段沉淀到 memory/digests/。"
-            )
+            if settings.charter.auto_advance_stages:
+                output = (
+                    f"阶段 {cur_idx + 1} 「{cur.name}」完成 ✓；"
+                    f"阶段 {next_idx + 1} 「{nxt.name}」已切换为 ▶ doing。"
+                    f"请调用 attempt_completion 提交本阶段完成报告；"
+                    f"框架会沉淀本阶段并自动推进下一阶段，无需等待用户说继续。"
+                )
+            else:
+                output = (
+                    f"阶段 {cur_idx + 1} 「{cur.name}」完成 ✓；"
+                    f"阶段 {next_idx + 1} 「{nxt.name}」已切换为 ▶ doing。"
+                    f"接下来请调用 attempt_completion 让本轮流自然结束，"
+                    f"框架会触发进化链把本阶段沉淀到 memory/digests/。"
+                )
 
         charter_path.write_text(serialize_charter(doc), encoding="utf-8", newline="\n")
         logger.info(

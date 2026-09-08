@@ -39,6 +39,9 @@ class ToolWorkspaceContext:
     project_id: str | None = None
     """项目 ID（与 executor 绑定时保留，便于上层审计）。"""
 
+    def resolved_project_id(self) -> str:
+        return self.project_id or self.project_root.name
+
 def get_tool_workspace() -> ToolWorkspaceContext | None:
     return _current_workspace.get()
 
@@ -95,6 +98,27 @@ def build_workspace_for_project(
         executor=executor,
         project_id=project_id,
     )
+
+
+def build_workspace_for_local_root(
+    root: Path,
+    project_id: str,
+    *,
+    executor: Any = None,
+) -> ToolWorkspaceContext:
+    """把任意本地目录当成 Codex 式工作区：相对路径锚在该目录本身。"""
+    from cancer_claw.config import settings
+
+    resolved = Path(root).expanduser().resolve()
+    extra = normalize_extra_allow_roots(list(settings.paths.tool_path_allow_extra or []))
+    return ToolWorkspaceContext(
+        project_root=resolved,
+        default_relative_root=resolved,
+        extra_allow_roots=extra,
+        executor=executor,
+        project_id=project_id,
+    )
+
 
 def get_project_workspace_root(project_id: str) -> Path:
 

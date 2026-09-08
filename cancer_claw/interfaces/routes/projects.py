@@ -22,6 +22,7 @@ from cancer_claw.services.identity.deps import (
 )
 from cancer_claw.config import settings
 from cancer_claw.db import get_db
+from cancer_claw.services.projects.service import NOT_CLI_LOCAL_SQL, NOT_CLI_LOCAL_SQL_P
 
 _require_sharing = require_feature("project_sharing")
 
@@ -123,7 +124,9 @@ async def list_projects(user: dict = Depends(get_current_user)):
         cursor = await db.execute(
             "SELECT id, name, description, workspace_path, owner_id, created_at, updated_at, "
             "COALESCE(visibility, 'private') "
-            "FROM projects ORDER BY updated_at DESC"
+            "FROM projects WHERE 1=1"
+            + NOT_CLI_LOCAL_SQL
+            + " ORDER BY updated_at DESC"
         )
         rows = await cursor.fetchall()
         items = [
@@ -146,7 +149,10 @@ async def list_projects(user: dict = Depends(get_current_user)):
         FROM projects p
         LEFT JOIN project_members pm
                ON pm.project_id = p.id AND pm.user_id = ?
-        WHERE p.owner_id = ? OR pm.user_id = ?
+        WHERE (p.owner_id = ? OR pm.user_id = ?)
+        """
+            + NOT_CLI_LOCAL_SQL_P
+            + """
         ORDER BY p.updated_at DESC
         """,
         (uid, uid, uid, uid),

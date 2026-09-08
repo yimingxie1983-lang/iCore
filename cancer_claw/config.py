@@ -150,6 +150,15 @@ class SandboxConfig(BaseModel):
     low_integrity: bool = True
     redirect_env_dirs: bool = True
 
+
+class TrainingConfig(BaseModel):
+    """独立训练运行时（与 iCore 应用 venv 隔离）。"""
+
+    python: str = "./.venv-train/Scripts/python.exe"
+    # Dedicated D: tree for GPU venv / pip / HF / torch caches. Empty = derive from python.
+    root: str = ""
+    max_vram_mb: int = 7168
+
 class EvolutionConfig(BaseModel):
 
     enabled: bool = True
@@ -169,6 +178,9 @@ class CharterConfig(BaseModel):
 
     event_window_size: int = 10
     log_event_debounce_seconds: int = 60
+    # 复杂多阶段任务：阶段完成后同流自动推进，无需用户说「继续」
+    auto_advance_stages: bool = True
+    auto_advance_max_stages: int = 20
 
 class DiagnosticsConfig(BaseModel):
 
@@ -204,6 +216,63 @@ class MailConfig(BaseModel):
 class FeaturesConfig(BaseModel):
 
     project_sharing: bool = False
+    insights_collect: bool = True
+    insights_ai_summary: bool = True
+
+
+class WeChatChannelConfig(BaseModel):
+    """微信 iLink 本机桥配置。"""
+
+    enabled: bool = True
+    mode: str = Field("desktop", description="desktop=本机桥；server=服务端常驻（未实现）")
+    default_permissions: str = "ask"
+    progress_to_chat: bool = True
+    artifact_delivery: str = Field(
+        "media_then_link",
+        description="media_then_link | media_only | link_only",
+    )
+    chunk_interval_seconds: float = 3.0
+    cdn_base_url: str = "https://novac2c.cdn.weixin.qq.com/c2c"
+    bind_code_ttl_seconds: int = 600
+
+
+class ChannelsConfig(BaseModel):
+    wechat: WeChatChannelConfig = WeChatChannelConfig()
+
+
+class PrivacyConfig(BaseModel):
+    """医院场景 PHI/PII 脱敏配置。"""
+
+    enabled: bool = True
+    mode: str = Field(
+        "strict",
+        description="strict=替换敏感信息；audit_only=仅审计命中；off=关闭",
+    )
+    desensitize_on_upload: bool = True
+    desensitize_before_llm: bool = True
+    desensitize_on_chat_input: bool = True
+    desensitize_on_persist: bool = True
+    rules: list[str] = Field(
+        default_factory=lambda: [
+            "id_card",
+            "phone",
+            "landline",
+            "mrn",
+            "name",
+            "address",
+            "email",
+            "bank_card",
+            "passport",
+        ],
+        description="启用的脱敏规则类型",
+    )
+    textual_upload_extensions: list[str] = Field(
+        default_factory=lambda: [
+            ".txt", ".md", ".csv", ".tsv", ".json", ".jsonl", ".xml",
+            ".html", ".htm", ".log", ".yaml", ".yml",
+        ],
+        description="上传时自动脱敏的文本类扩展名",
+    )
 
 class Settings(BaseModel):
 
@@ -223,10 +292,13 @@ class Settings(BaseModel):
     evolution: EvolutionConfig = EvolutionConfig()
     charter: CharterConfig = CharterConfig()
     sandbox: SandboxConfig = SandboxConfig()
+    training: TrainingConfig = TrainingConfig()
     diagnostics: DiagnosticsConfig = DiagnosticsConfig()
     auth: AuthConfig = AuthConfig()
     mail: MailConfig = MailConfig()
     features: FeaturesConfig = FeaturesConfig()
+    privacy: PrivacyConfig = PrivacyConfig()
+    channels: ChannelsConfig = ChannelsConfig()
     project_root: str = ""
 
 def _find_config_file() -> Path | None:
@@ -234,11 +306,9 @@ def _find_config_file() -> Path | None:
 
     env_path = os.environ.get("ONEKEY_CONFIG")
     if env_path:
-        p = Path(env_path)
+        p = Path(env_path).expanduser()
         if p.exists():
             return p
-
-
 
     current = Path.cwd()
     for _ in range(5):
@@ -249,6 +319,16 @@ def _find_config_file() -> Path | None:
         if parent == current:
             break
         current = parent
+
+    # `icore` 可在任意工作目录启动，继续向安装位置 / 用户目录找配置。
+    install_root = Path(__file__).resolve().parent.parent
+    install_cfg = install_root / "config.yaml"
+    if install_cfg.exists():
+        return install_cfg
+
+    user_cfg = Path.home() / ".icore" / "config.yaml"
+    if user_cfg.exists():
+        return user_cfg
 
     return None
 
@@ -303,6 +383,11 @@ def _apply_env_overrides(settings: Settings) -> Settings:
     if os.environ.get("CANCER_CLAW_EVOLUTION_ENABLED"):
         settings.evolution.enabled = (
             os.environ["CANCER_CLAW_EVOLUTION_ENABLED"].lower() in ("1", "true", "yes")
+        )
+    if os.environ.get("CANCER_CLAW_CHARTER_AUTO_ADVANCE"):
+        settings.charter.auto_advance_stages = (
+            os.environ["CANCER_CLAW_CHARTER_AUTO_ADVANCE"].lower()
+            in ("1", "true", "yes")
         )
 
 
@@ -404,6 +489,25 @@ def _apply_env_overrides(settings: Settings) -> Settings:
             in ("1", "true", "yes")
         )
 
+    if os.environ.get("CANCER_CLAW_PRIVACY_ENABLED"):
+        settings.privacy.enabled = (
+            os.environ["CANCER_CLAW_PRIVACY_ENABLED"].lower() in ("1", "true", "yes")
+        )
+    if os.environ.get("CANCER_CLAW_PRIVACY_MODE"):
+        settings.privacy.mode = os.environ["CANCER_CLAW_PRIVACY_MODE"]
+
+    if os.environ.get("CANCER_CLAW_TRAINING_PYTHON"):
+        settings.training.python = os.environ["CANCER_CLAW_TRAINING_PYTHON"]
+    if os.environ.get("CANCER_CLAW_TRAINING_ROOT"):
+        settings.training.root = os.environ["CANCER_CLAW_TRAINING_ROOT"]
+    if os.environ.get("CANCER_CLAW_TRAINING_MAX_VRAM_MB"):
+        try:
+            settings.training.max_vram_mb = int(
+                os.environ["CANCER_CLAW_TRAINING_MAX_VRAM_MB"]
+            )
+        except ValueError:
+            pass
+
     return settings
 
 def _resolve_to_project_root(raw_path: str, project_root: Path) -> str:
@@ -431,6 +535,13 @@ def _absolutize_paths(settings: "Settings", project_root: Path) -> None:
     settings.skills.uploads_dir = _resolve_to_project_root(
         settings.skills.uploads_dir, project_root
     )
+    settings.training.python = _resolve_to_project_root(
+        settings.training.python, project_root
+    )
+    if settings.training.root:
+        settings.training.root = _resolve_to_project_root(
+            settings.training.root, project_root
+        )
 
 def load_settings() -> Settings:
 

@@ -1,0 +1,103 @@
+{
+  "sourcePptx": "D:\\Codex\\Code\\iCore\\cancer_claw_share_20260722_1757\\ppt_work\\source-template.pptx",
+  "workspace": "D:\\Codex\\Code\\iCore\\cancer_claw_share_20260722_1757\\ppt_work",
+  "outDir": "D:\\Codex\\Code\\iCore\\cancer_claw_share_20260722_1757\\ppt_work\\template-inspect",
+  "generatedAt": "2026-08-17T13:51:19.224Z",
+  "slideCount": 1,
+  "slideArtifacts": [
+    {
+      "slide": 1,
+      "previewPath": "D:\\Codex\\Code\\iCore\\cancer_claw_share_20260722_1757\\ppt_work\\template-inspect\\source-slides\\source-slide-01.png",
+      "previewRelativePath": "template-inspect/source-slides/source-slide-01.png",
+      "layoutPath": "D:\\Codex\\Code\\iCore\\cancer_claw_share_20260722_1757\\ppt_work\\template-inspect\\layouts\\source-slide-01.layout.json",
+      "layoutRelativePath": "template-inspect/layouts/source-slide-01.layout.json"
+    }
+  ],
+  "inspectPath": "D:\\Codex\\Code\\iCore\\cancer_claw_share_20260722_1757\\ppt_work\\template-inspect\\template-inspect.ndjson",
+  "inspectRelativePath": "template-inspect/template-inspect.ndjson",
+  "inspectTruncated": false,
+  "inspectMetadata": {
+    "revision": "aw8lmn",
+    "target": {
+      "id": "pr/5rcmku"
+    },
+    "kind": {
+      "requested": "slide,textbox,shape,image,table,chart",
+      "tokens": [
+        "slide",
+        "textbox",
+        "shape",
+        "image",
+        "table",
+        "chart"
+      ]
+    },
+    "include": {
+      "tokens": []
+    },
+    "exclude": {
+      "tokens": []
+    },
+    "notices": []
+  },
+  "extractedMedia": [
+    {
+      "entry": "ppt/media/",
+      "path": "D:\\Codex\\Code\\iCore\\cancer_claw_share_20260722_1757\\ppt_work\\template-inspect\\assets\\ppt\\media\\media",
+      "relativePath": "template-inspect/assets/ppt/media/media",
+      "bytes": 0
+    },
+    {
+      "entry": "ppt/media/image1.png",
+      "path": "D:\\Codex\\Code\\iCore\\cancer_claw_share_20260722_1757\\ppt_work\\template-inspect\\assets\\ppt\\media\\image1.png",
+      "relativePath": "template-inspect/assets/ppt/media/image1.png",
+      "bytes": 298467
+    }
+  ],
+  "fonts": [
+    "+mj-cs",
+    "+mj-ea",
+    "+mj-lt",
+    "+mn-cs",
+    "+mn-ea",
+    "+mn-lt",
+    "Angsana New",
+    "Arial",
+    "Calibri",
+    "Cordia New",
+    "DaunPenh",
+    "DokChampa",
+    "Estrangelo Edessa",
+    "Euphemia",
+    "Gautami",
+    "Iskoola Pota",
+    "Kalinga",
+    "Kartika",
+    "Latha",
+    "MV Boli",
+    "Mangal",
+    "Microsoft Himalaya",
+    "Microsoft Uighur",
+    "Microsoft Yi Baiti",
+    "Mongolian Baiti",
+    "MoolBoran",
+    "Nyala",
+    "Plantagenet Cherokee",
+    "Raavi",
+    "Shruti",
+    "Sylfaen",
+    "Times New Roman",
+    "Tunga",
+    "Vrinda",
+    "微软雅黑",
+    "新細明體",
+    "맑은 고딕",
+    "ＭＳ Ｐゴシック"
+  ],
+  "packageParts": {
+    "mediaCount": 2,
+    "slideXmlCount": 1,
+    "chartCount": 0,
+    "tableSlideCount": 0
+  }
+}

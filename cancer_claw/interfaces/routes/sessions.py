@@ -9,19 +9,20 @@ import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from cancer_claw.services.identity.deps import require_project_read, require_project_write
-from cancer_claw.db import get_db
 from cancer_claw.agent.recall.session_repo import (
     count_sessions,
     delete_session_full,
     get_session,
     list_sessions,
+    prune_empty_internal_sessions,
     reconcile_project_sessions,
     update_session_status,
     update_session_title,
 )
 from cancer_claw.agent.recall.working import _parse_stored_content
 from cancer_claw.capabilities.toolkit.workspace import get_project_workspace_root
+from cancer_claw.db import get_db
+from cancer_claw.services.identity.deps import require_project_read, require_project_write
 
 logger = structlog.get_logger()
 router = APIRouter()
@@ -174,6 +175,13 @@ async def list_project_sessions(
 
 
 
+
+    try:
+        await prune_empty_internal_sessions(project_id)
+    except Exception as e:
+        logger.warning(
+            "sessions_prune_internal_failed", project_id=project_id, error=str(e)
+        )
 
     try:
         db = await get_db()
@@ -387,9 +395,7 @@ async def delete_session(
 
 
     row = await get_session(session_id)
-    if row is None:
-        return SessionDeleteResp(session_id=session_id)
-    if row.get("project_id") != project_id:
+    if row is not None and row.get("project_id") != project_id:
         raise HTTPException(
             status_code=404,
             detail=f"会话 {session_id} 不属于项目 {project_id}",

@@ -20,7 +20,7 @@ import { api } from '@/client/services/client'
 import { Badge } from '@/ui/widgets/ui/badge'
 import { useSessionsStore } from '@/application/state/sessionsStore'
 import { cn } from '@/shared/foundation/utils'
-import TurnSteps from './TurnSteps'
+import StepsSummary from './StepsSummary'
 import PresentedFilesBlock from './PresentedFiles'
 import TypewriterMarkdown from '@/ui/widgets/common/TypewriterMarkdown'
 import {
@@ -308,7 +308,7 @@ function AssistantMessage({
 
         {}
         {(hasSteps || message.streaming) && (
-          <TurnSteps
+          <StepsSummary
             steps={message.steps}
             streaming={message.streaming && !hasText}
             stageOutputs={stageSegments}

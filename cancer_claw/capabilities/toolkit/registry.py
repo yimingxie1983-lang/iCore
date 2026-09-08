@@ -59,6 +59,7 @@ CORE_TOOL_NAMES: set[str] = {
 
     "project_lookup",
     "project_open",
+    "train_run",
 }
 
 MAIN_LOOP_SYSTEM_TOOLS: set[str] = {
@@ -124,8 +125,7 @@ ML_ENGINEER_PERSONA_TOOLS: set[str] = {
     "citation_resolve",
     "skill_resource",
     "pptx_read",
-
-
+    "train_run",
 }
 
 _PERSONA_TOOL_SETS: dict[str, set[str]] = {
@@ -148,12 +148,14 @@ PLAN_MODE_VISIBLE_TOOLS: set[str] = {
     "json_ops",
     "exit_plan_mode",
     "attempt_completion",
+    "train_run",
 }
 
 PLAN_MODE_ALLOWED_ACTIONS: dict[str, set[str]] = {
     "file_ops": {"read_file", "list_dir", "exists", "glob"},
 
     "task_charter": {"read"},
+    "train_run": {"runtime", "status", "log", "list"},
 }
 
 SUBAGENT_ONLY_TOOLS: set[str] = set()
@@ -311,6 +313,7 @@ def _register_builtins(registry: ToolRegistry):
         ProjectLookupTool,
         ProjectOpenTool,
     )
+    from cancer_claw.capabilities.toolkit.builtins.train_run import TrainRunTool
 
     builtins = [
         FileOpsTool(),
@@ -352,6 +355,7 @@ def _register_builtins(registry: ToolRegistry):
         PptxReadTool(),
         ProjectLookupTool(),
         ProjectOpenTool(),
+        TrainRunTool(),
     ]
 
     for tool in builtins:

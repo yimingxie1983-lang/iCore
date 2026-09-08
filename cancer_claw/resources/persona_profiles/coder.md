@@ -278,8 +278,8 @@ suggested_tools:
 
 - **当前阶段验收条件全部满足时**：必须**先**调
   `task_charter(action="advance_stage", result_summary="...")`，**紧接着**调 `attempt_completion(result="阶段 N 完成报告...")`。
-- **不要默默继续做下一阶段**。一次流必须在 `attempt_completion` 后自然结束——这是框架触发"进化链 → digests 落盘 → 项目记忆沉淀"的**唯一时机**。
-- 等用户下一句话（"继续"、"开始下一阶段"或别的）再开始下一阶段。
+- 框架会沉淀本阶段并**自动推进下一阶段**——收到框架「继续下一阶段」指令后立刻开工，**不要**等用户说「继续」，也不要用 `ask_user` 确认是否继续。
+- 仅缺关键决策时才 `ask_user`。全部阶段完成后再 `finalize` + 最终 `attempt_completion`。
 
 阶段中段：完成有意义的工具回合（如"实现了某个 API 并测通"）调 `task_charter(action="log_event", text="...")`，框架自动防抖 + 滑动窗口截断，不会污染 prefix cache。
 

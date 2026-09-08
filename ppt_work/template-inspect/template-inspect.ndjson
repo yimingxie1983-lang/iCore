@@ -1,0 +1,10 @@
+{"kind":"slide","id":"sl/y90nupkv","slide":1,"title":"复旦大学智能医学研究院孵化企业","textShapes":5}
+{"kind":"shape","id":"sh/547294r6","slide":1,"name":"标题 1","placeholder":"title","bbox":[0,0,0,0]}
+{"kind":"shape","id":"sh/k3yl0zql","slide":1,"name":"副标题 2","placeholder":"subtitle","bbox":[0,0,0,0]}
+{"kind":"textbox","id":"sh/7qp4be9c","slide":1,"name":"header-kicker-11","text":"复旦大学智能医学研究院孵化企业","textPreview":"复旦大学智能医学研究院孵化企业","textChars":15,"textLines":1,"bbox":[24,12,340,20]}
+{"kind":"textbox","id":"sh/65g3298r","slide":1,"name":"header-company-11","text":"上海藤核智能科技有限公司","textPreview":"上海藤核智能科技有限公司","textChars":12,"textLines":1,"bbox":[24,32,400,28]}
+{"kind":"textbox","id":"sh/ts7md4r2","slide":1,"name":"title-11","text":"案例1：GSDME（DFNA5）甲基化与7个TCGA癌种\n生存预后及TNM分期的关联分析","textPreview":"案例1：GSDME（DFNA5）甲基化与7个TCGA癌种 | 生存预后及TNM分期的关联分析","textChars":44,"textLines":2,"bbox":[40,61,1195,76]}
+{"kind":"shape","id":"sh/sryl4zqx","slide":1,"name":"footer-rule-11","bbox":[24,677,1232,1.4]}
+{"kind":"textbox","id":"sh/utg3698n","slide":1,"name":"footer-11","text":"iCore 医学智能体元框架 | 上海藤核智能科技有限公司","textPreview":"iCore 医学智能体元框架 | 上海藤核智能科技有限公司","textChars":29,"textLines":1,"bbox":[31,685,680,22]}
+{"kind":"textbox","id":"sh/wn6dc7eh","slide":1,"name":"page-11","text":"11","textPreview":"11","textChars":2,"textLines":1,"bbox":[1222,682,36,25]}
+{"kind":"image","id":"im/ipofexcz","slide":1,"name":"图片 7","bbox":[0,144,1280,524]}

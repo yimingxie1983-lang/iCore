@@ -1,0 +1,34 @@
+{
+  "sourcePptx": "D:\\Codex\\Code\\iCore\\cancer_claw_share_20260722_1757\\ppt_work\\source-template.pptx",
+  "mapPath": "D:\\Codex\\Code\\iCore\\cancer_claw_share_20260722_1757\\ppt_work\\template-frame-map.json",
+  "output": "D:\\Codex\\Code\\iCore\\cancer_claw_share_20260722_1757\\ppt_work\\template-starter.pptx",
+  "outputBytes": 320473,
+  "sourceSlideCount": 1,
+  "slideCount": 2,
+  "previewDir": "D:\\Codex\\Code\\iCore\\cancer_claw_share_20260722_1757\\ppt_work\\template-starter-preview",
+  "layoutDir": "D:\\Codex\\Code\\iCore\\cancer_claw_share_20260722_1757\\ppt_work\\template-starter-layout",
+  "slides": [
+    {
+      "outputSlide": 1,
+      "sourceSlide": 1,
+      "narrativeRole": "clinical decision-support case study",
+      "reuseMode": "duplicate-slide",
+      "editTargetCount": 5,
+      "previewPath": "D:\\Codex\\Code\\iCore\\cancer_claw_share_20260722_1757\\ppt_work\\template-starter-preview\\starter-slide-01.png",
+      "previewRelativePath": "template-starter-preview/starter-slide-01.png",
+      "layoutPath": "D:\\Codex\\Code\\iCore\\cancer_claw_share_20260722_1757\\ppt_work\\template-starter-layout\\starter-slide-01.layout.json",
+      "layoutRelativePath": "template-starter-layout/starter-slide-01.layout.json"
+    },
+    {
+      "outputSlide": 2,
+      "sourceSlide": 1,
+      "narrativeRole": "clinical-trial design and data-governance case study",
+      "reuseMode": "duplicate-slide",
+      "editTargetCount": 5,
+      "previewPath": "D:\\Codex\\Code\\iCore\\cancer_claw_share_20260722_1757\\ppt_work\\template-starter-preview\\starter-slide-02.png",
+      "previewRelativePath": "template-starter-preview/starter-slide-02.png",
+      "layoutPath": "D:\\Codex\\Code\\iCore\\cancer_claw_share_20260722_1757\\ppt_work\\template-starter-layout\\starter-slide-02.layout.json",
+      "layoutRelativePath": "template-starter-layout/starter-slide-02.layout.json"
+    }
+  ]
+}

@@ -6,8 +6,10 @@
 
 1. **阶段进度表是账本**：哪个阶段在做、哪些已经 ✓、哪些还 ⏳，以它为准；不要靠对话历史回忆。
 2. **阶段完成的唯一标记动作**是先 `task_charter(action="advance_stage", result_summary=...)`，紧接着 `attempt_completion(result=...)`。
-   - **不能默默继续做下一阶段**。一次流必须以 `attempt_completion` 结束，让框架触发"进化链 → digests 落盘"，否则本阶段对未来的你完全不可见。
    - 调完 `advance_stage` 没调 `attempt_completion` = 阶段没真正完成（用户在前端看不到完成报告）。
+   - **框架会自动推进下一阶段**（无需等用户说「继续」）：你调完 `attempt_completion` 后，框架沉淀本阶段并注入「继续下一阶段」指令，你应立刻开工，不要再问用户是否继续。
+   - 仅在缺关键决策、歧义澄清、议会 escalate 时用 `ask_user`；不要用 `ask_user` 问「要不要继续下一阶段」。
+   - 全部阶段完成后再 `finalize` + 最终 `attempt_completion`。
 3. **关键事件随手记**：完成一个有意义的工具回合后，调一次 `task_charter(action="log_event", text=...)`。
    框架会自动防抖（同字段 60s 内多次写只生效最后一次）+ 滑动窗口截断到最近 10 条，不会污染 prefix cache。
 4. **决策与阻塞**用 `update_decision` / `update_blocker` 维护，让长任务的"为什么这么选 / 卡在哪"被持久化。

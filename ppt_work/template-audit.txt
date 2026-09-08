@@ -1,0 +1,10 @@
+TEMPLATE AUDIT — source deck
+- Source: 新建 PPTX 演示文稿.pptx; one 1280x720 slide, title-slide layout from a WPS theme.
+- Brand chrome: navy (#071F58) header kicker/company, top case title, thin footer rule at y=677, footer text, right page marker.
+- Typography evidence: source slide uses Calibri; case title is about 25.5 px bold navy in two lines; footer and page marker are smaller bold navy; master theme Calibri.
+- Structure: visible slide objects are header-kicker-11, header-company-11, title-11, footer-rule-11, footer-11, page-11, and a full-width source-case raster image at bbox [0,144,1280,524].
+- Placeholders: the slide contains empty inherited title and subtitle placeholders with zero-size boxes; delete them in every cloned output slide rather than leave PowerPoint prompts.
+- Reuse: the single source case slide is duplicated twice because both requested outputs are case pages with the same header/footer/title/content-zone contract.
+- Content contract: preserve x=40 title margin, header/footer chrome, Calibri, navy/white palette, and the y=144–668 content zone.
+- Insertion: replace the source raster with native editable shapes/tables in the same zone; do not retain the unrelated GSDME case evidence.
+- No global master/layout change is required.

@@ -490,7 +490,7 @@ export async function* streamSessionLive(opts: {
   const baseURL = opts.baseURL || '/api'
   const fromSeq = opts.fromSeq ?? 0
   const url =
-    `${baseURL}/projects/${opts.projectId}/sessions/${opts.sessionId}/live` +
+    `${baseURL}/projects/${encodeURIComponent(opts.projectId)}/sessions/${encodeURIComponent(opts.sessionId)}/live` +
     `?from_seq=${fromSeq}`
   const res = await fetch(url, {
     method: 'GET',

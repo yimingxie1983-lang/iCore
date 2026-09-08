@@ -39,6 +39,7 @@ paths:
   tool_path_allow_extra:
     - "D:\\data"
     - "D:\\demo"
+    - "D:\\icore-ml"
 
 
 # ── SQLite 数据库 ──────────────────────────────────────────────
@@ -131,6 +132,7 @@ skills:
   # 卫健委场景：把政策检索方法论钉进 L1，保证政策顾问随时能看到该方法论摘要
   pinned:
     - "skill_policy-research-advisory"
+    - "skill_model-design-from-brief"
 
 citations:
   authority_sites:
@@ -160,6 +162,16 @@ sandbox:
   redirect_env_dirs: true
 
 
+# ── 本地模型训练（与应用 venv 隔离） ─────────────────────────
+# GPU/CUDA 环境固定在 D:\icore-ml（venv + pip/HF/torch 缓存 + tmp）。
+# 禁止 pip install 进 iCore 应用 venv，禁止把缓存写到 C:\Users\...\AppData。
+# 首次或迁移请跑：powershell -File ops/setup_train_env.ps1
+training:
+  root: "D:/icore-ml"
+  python: "D:/icore-ml/venv/Scripts/python.exe"
+  max_vram_mb: 7168
+
+
 # ── 进化链（任务后异步「记忆沉淀」） ──────────────────────────
 # 一次模型调用产出三段：
 #   task_digest      本次任务结构化摘要
@@ -172,6 +184,14 @@ evolution:
   # 任务后额外产出「待审批 SKILL.md 草稿」→ skill_drafts 表（status=pending）。
   # 只进审批队列，不直接写技能库；管理员在「进化审批」页审核通过才固化。
   skill_draft_enabled: true
+
+
+# ── 长任务契约（CHARTER）──────────────────────────────────────
+# 复杂多阶段任务默认自动连跑：阶段完成报告展示后，框架自动推进下一阶段，
+# 无需用户手动说「继续」。仅在缺关键决策时才 ask_user。
+charter:
+  auto_advance_stages: true
+  auto_advance_max_stages: 20
 
 
 # ── 诊断 / 可观测性 ────────────────────────────────────────────
@@ -211,3 +231,50 @@ mail:
   starttls: true
   timeout: 10
   public_base_url: ""            # 对外访问地址，用于生成重置 / 验证链接（如 https://icore.example.com）
+
+
+# ── 隐私脱敏（医院场景）────────────────────────────────────────
+# 所有进入 iCore 的数据在使用前进行 PHI/PII 脱敏。
+# mode: strict=替换敏感信息 | audit_only=仅记录命中 | off=关闭
+privacy:
+  enabled: true
+  mode: "strict"
+  desensitize_on_upload: true       # 上传文本/Office 时先提示确认；仅用户选择脱敏后才执行脱敏
+  desensitize_on_chat_input: true    # 用户消息入站脱敏
+  desensitize_before_llm: true        # 发往外部 LLM 前脱敏
+  desensitize_on_persist: true        # 会话/工具结果落库前脱敏
+  rules:
+    - id_card
+    - phone
+    - landline
+    - mrn
+    - name
+    - address
+    - email
+    - bank_card
+    - passport
+  textual_upload_extensions:
+    - .txt
+    - .md
+    - .csv
+    - .tsv
+    - .json
+    - .jsonl
+    - .xml
+    - .html
+    - .htm
+    - .log
+    - .yaml
+    - .yml
+
+
+# ── 外部渠道（微信本机桥）──────────────────────────────────────
+channels:
+  wechat:
+    enabled: true
+    mode: desktop                 # desktop=本机桥
+    default_permissions: ask
+    progress_to_chat: true        # 精简 episode 进度推送到微信
+    artifact_delivery: media_then_link
+    chunk_interval_seconds: 3.0
+    bind_code_ttl_seconds: 600

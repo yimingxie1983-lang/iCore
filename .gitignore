@@ -8,6 +8,7 @@ build/
 dist/
 .eggs/
 .venv/
+.venv-train/
 venv/
 env/
 .env
@@ -47,6 +48,9 @@ nuitka-crash-report.xml
 ops/data/
 ops/backups/
 ops/.env
+ops/client/build/
+ops/client/*.spec
+ops/client/iCore/
 *.tar.gz
 *.tar
 _tmp_*.py

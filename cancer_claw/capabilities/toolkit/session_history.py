@@ -25,6 +25,9 @@ def _make_session_id(agent_id: str) -> str:
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
 
     short = (agent_id or "agent").split("_")[-1][:16] or "agent"
+    # `#` 等字符会截断 REST 路径（浏览器把 # 当 fragment），子任务克隆 id
+    # 形如 claw_master#sub，不能原样拼进 session_id。
+    short = re.sub(r"[^A-Za-z0-9.-]+", "-", short).strip("-.") or "agent"
     return f"{ts}_{short}"
 
 def dump_session(

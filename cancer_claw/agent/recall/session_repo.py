@@ -14,6 +14,12 @@ from cancer_claw.capabilities.toolkit.session_history import SESSIONS_DIR_NAME
 
 logger = structlog.get_logger()
 
+# 议会/小队子任务会把 agent.id 写成 claw_master#sub，session_id 也曾带 #。
+# 这些不是用户会话：# 会截断 REST 路径，且常以空标题出现在侧栏。
+_NOT_INTERNAL_SESSION_SQL = (
+    " AND session_id NOT LIKE '%#%' AND COALESCE(agent_id, '') NOT LIKE '%#%'"
+)
+
 def _normalize_content(raw: Any) -> str:
 
     if raw is None:
@@ -111,8 +117,9 @@ async def list_sessions(
             "SELECT session_id, project_id, agent_id, title, preview, "
             "message_count, tool_calls, status, jsonl_path, created_at, "
             "updated_at, ended_at "
-            "FROM chat_sessions WHERE project_id = ? "
-            "ORDER BY updated_at DESC LIMIT ? OFFSET ?"
+            "FROM chat_sessions WHERE project_id = ?"
+            + _NOT_INTERNAL_SESSION_SQL
+            + " ORDER BY updated_at DESC LIMIT ? OFFSET ?"
         )
         params: tuple[Any, ...] = (project_id, limit, offset)
     else:
@@ -120,8 +127,9 @@ async def list_sessions(
             "SELECT session_id, project_id, agent_id, title, preview, "
             "message_count, tool_calls, status, jsonl_path, created_at, "
             "updated_at, ended_at "
-            "FROM chat_sessions WHERE project_id = ? AND status != 'archived' "
-            "ORDER BY updated_at DESC LIMIT ? OFFSET ?"
+            "FROM chat_sessions WHERE project_id = ? AND status != 'archived'"
+            + _NOT_INTERNAL_SESSION_SQL
+            + " ORDER BY updated_at DESC LIMIT ? OFFSET ?"
         )
         params = (project_id, limit, offset)
     cursor = await db.execute(sql, params)
@@ -149,10 +157,16 @@ async def count_sessions(project_id: str, *, include_archived: bool = False) -> 
 
     db = await get_read_db()
     if include_archived:
-        sql = "SELECT COUNT(*) FROM chat_sessions WHERE project_id = ?"
+        sql = (
+            "SELECT COUNT(*) FROM chat_sessions WHERE project_id = ?"
+            + _NOT_INTERNAL_SESSION_SQL
+        )
         params: tuple[Any, ...] = (project_id,)
     else:
-        sql = "SELECT COUNT(*) FROM chat_sessions WHERE project_id = ? AND status != 'archived'"
+        sql = (
+            "SELECT COUNT(*) FROM chat_sessions WHERE project_id = ? AND status != 'archived'"
+            + _NOT_INTERNAL_SESSION_SQL
+        )
         params = (project_id,)
     cursor = await db.execute(sql, params)
     row = await cursor.fetchone()
@@ -308,11 +322,22 @@ async def touch_session_on_save(
 
 async def update_session_title(session_id: str, title: str) -> bool:
 
+    cleaned = title.strip()[:60]
+    from cancer_claw.config import settings as _settings
+    from cancer_claw.services.privacy.desensitizer import desensitize_text
+
+    if (
+        _settings.privacy.enabled
+        and _settings.privacy.mode != "off"
+        and getattr(_settings.privacy, "desensitize_on_persist", True)
+    ):
+        cleaned = desensitize_text(cleaned, context="session_title").text[:60]
+
     db = await get_db()
     cursor = await db.execute(
         "UPDATE chat_sessions SET title = ?, updated_at = CURRENT_TIMESTAMP "
         "WHERE session_id = ?",
-        (title.strip()[:60], session_id),
+        (cleaned, session_id),
     )
     await db.commit()
     return (cursor.rowcount or 0) > 0
@@ -339,6 +364,28 @@ async def update_session_status(
         )
     await db.commit()
     return (cursor.rowcount or 0) > 0
+
+async def prune_empty_internal_sessions(project_id: str) -> int:
+    """删掉议会/小队留下的空索引行，避免侧栏反复冒出「未命名会话」。"""
+    db = await get_db()
+    cursor = await db.execute(
+        """
+        DELETE FROM chat_sessions
+        WHERE project_id = ?
+          AND (session_id LIKE '%#%' OR COALESCE(agent_id, '') LIKE '%#%')
+          AND COALESCE(message_count, 0) = 0
+        """,
+        (project_id,),
+    )
+    await db.commit()
+    n = int(cursor.rowcount or 0)
+    if n:
+        logger.info(
+            "empty_internal_sessions_pruned",
+            project_id=project_id,
+            deleted=n,
+        )
+    return n
 
 async def delete_session_row(session_id: str) -> bool:
 
@@ -504,6 +551,8 @@ async def reconcile_project_sessions(
 
     count = 0
     for sid in sids_in_db:
+        if "#" in (sid or ""):
+            continue
         try:
             result = await sync_from_db(
                 project_id=project_id,
@@ -524,7 +573,7 @@ async def reconcile_project_sessions(
         if sdir.exists():
             for jsonl_path in sdir.glob("*.jsonl"):
                 sid = jsonl_path.stem
-                if sid in sids_in_db:
+                if sid in sids_in_db or "#" in sid:
                     continue
                 try:
                     line_count = 0

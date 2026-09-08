@@ -9,6 +9,7 @@ from typing import Any
 
 from cancer_claw.db import get_db, get_read_db
 from cancer_claw.services.identity.security import hash_password
+from cancer_claw.services.projects.service import NOT_CLI_LOCAL_SQL, NOT_CLI_LOCAL_SQL_P
 
 ROLE_ADMIN = "admin"
 ROLE_USER = "user"
@@ -620,6 +621,9 @@ async def find_projects_by_name(
         cur = await db.execute(
             """SELECT id, name, 'owner' AS role FROM projects
                WHERE name LIKE ? COLLATE NOCASE
+               """
+            + NOT_CLI_LOCAL_SQL
+            + """
                ORDER BY (name = ? COLLATE NOCASE) DESC, updated_at DESC
                LIMIT ?""",
             (like, q, limit),
@@ -634,6 +638,9 @@ async def find_projects_by_name(
                       ON pm.project_id = p.id AND pm.user_id = ?
                WHERE (p.owner_id = ? OR pm.user_id = ?)
                  AND p.name LIKE ? COLLATE NOCASE
+               """
+            + NOT_CLI_LOCAL_SQL_P
+            + """
                ORDER BY (p.name = ? COLLATE NOCASE) DESC, p.updated_at DESC
                LIMIT ?""",
             (uid, uid, uid, uid, like, q, limit),

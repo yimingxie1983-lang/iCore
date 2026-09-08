@@ -12,6 +12,7 @@ import {
   Pencil,
   Plus,
   PowerOff,
+  Radio,
   Trash2,
 } from 'lucide-react'
 
@@ -63,15 +64,52 @@ const BRAND_BAR: Record<string, string> = {
   zhipu: 'from-sky-500 to-indigo-500',
   kimi: 'from-fuchsia-500 to-purple-500',
   moonshot: 'from-fuchsia-500 to-purple-500',
+  ollama: 'from-stone-500 to-zinc-700',
+  lmstudio: 'from-indigo-500 to-sky-500',
+  vllm: 'from-orange-500 to-rose-500',
+  local: 'from-stone-500 to-zinc-700',
 }
 
 const ROLE_OPTIONS = ['general', 'fast', 'complex', 'vision'] as const
 
-function brandBarOf(id: string): string {
+type LocalPreset = {
+  id: string
+  label: string
+  name: string
+  base_url: string
+  models: ModelInfo[]
+}
+
+const LOCAL_PRESETS: LocalPreset[] = [
+  {
+    id: 'ollama',
+    label: 'Ollama',
+    name: 'Ollama',
+    base_url: 'http://127.0.0.1:11434/v1',
+    models: [{ id: 'llama3.2', role: 'general' }],
+  },
+  {
+    id: 'lmstudio',
+    label: 'LM Studio',
+    name: 'LM Studio',
+    base_url: 'http://127.0.0.1:1234/v1',
+    models: [{ id: 'local-model', role: 'general' }],
+  },
+  {
+    id: 'vllm',
+    label: 'vLLM',
+    name: 'vLLM',
+    base_url: 'http://127.0.0.1:8000/v1',
+    models: [{ id: 'default', role: 'general' }],
+  },
+]
+
+function brandBarOf(id: string, baseUrl?: string): string {
   const key = id.toLowerCase()
   for (const brand of Object.keys(BRAND_BAR)) {
     if (key.includes(brand)) return BRAND_BAR[brand]
   }
+  if (baseUrl && isLocalBaseUrl(baseUrl)) return BRAND_BAR.local
   return 'from-slate-400 to-slate-600'
 }
 
@@ -94,6 +132,20 @@ function hasApiKey(p: Provider): boolean {
   return !!p.api_key_preview
 }
 
+function isLocalBaseUrl(baseUrl: string): boolean {
+  const u = (baseUrl || '').toLowerCase()
+  return (
+    u.includes('127.0.0.1') ||
+    u.includes('localhost') ||
+    u.includes('[::1]') ||
+    u.includes('0.0.0.0')
+  )
+}
+
+function needsCloudApiKey(p: Provider): boolean {
+  return !hasApiKey(p) && !isLocalBaseUrl(p.base_url)
+}
+
 function ProviderCard({
   p,
   isAdmin,
@@ -110,6 +162,7 @@ function ProviderCard({
   toggleBusy: boolean
 }) {
   const keyed = hasApiKey(p)
+  const local = isLocalBaseUrl(p.base_url)
   return (
     <div
       className={cn(
@@ -118,7 +171,7 @@ function ProviderCard({
       )}
     >
       {}
-      <div className={cn('h-1 bg-gradient-to-r', brandBarOf(p.id))} />
+      <div className={cn('h-1 bg-gradient-to-r', brandBarOf(p.id, p.base_url))} />
 
       <div className="flex flex-col gap-4 p-5">
         {}
@@ -126,6 +179,11 @@ function ProviderCard({
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <h3 className="truncate text-[15px] font-semibold tracking-tight">{p.name}</h3>
+              {local && (
+                <Badge variant="secondary" className="h-4 px-1.5 text-[10px] font-normal">
+                  本地
+                </Badge>
+              )}
               {!p.enabled && (
                 <Badge variant="muted" className="h-4 px-1.5 text-[10px] font-normal">
                   已禁用
@@ -187,6 +245,10 @@ function ProviderCard({
                 <CheckCircle2 className="mr-0.5 h-2.5 w-2.5" />
                 已配置
               </Badge>
+            ) : local ? (
+              <Badge variant="secondary" className="h-4 px-1.5 text-[10px] font-normal">
+                本地可空
+              </Badge>
             ) : (
               <Badge variant="warning" className="h-4 px-1.5 text-[10px] font-normal">
                 <AlertTriangle className="mr-0.5 h-2.5 w-2.5" />
@@ -199,12 +261,16 @@ function ProviderCard({
               'rounded-md px-2 py-1 font-mono text-[11.5px]',
               keyed
                 ? 'bg-emerald-500/[0.06] text-emerald-700'
-                : 'bg-amber-500/[0.08] text-amber-700',
+                : local
+                  ? 'bg-muted/50 text-muted-foreground'
+                  : 'bg-amber-500/[0.08] text-amber-700',
             )}
           >
             {keyed
               ? p.api_key_preview
-              : `通过环境变量 ${p.id.toUpperCase()}_API_KEY 注入`}
+              : local
+                ? '本地端点通常无需 API Key'
+                : `通过环境变量 ${p.id.toUpperCase()}_API_KEY 注入`}
           </div>
         </div>
 
@@ -271,7 +337,7 @@ export default function Providers() {
   const kpis = useMemo(() => {
     const total = items.length
     const enabled = items.filter((p) => p.enabled).length
-    const missingKey = items.filter((p) => !hasApiKey(p)).length
+    const missingKey = items.filter((p) => needsCloudApiKey(p)).length
     const totalModels = items.reduce((acc, p) => acc + (p.models?.length || 0), 0)
     return { total, enabled, missingKey, totalModels }
   }, [items])
@@ -285,6 +351,7 @@ export default function Providers() {
           description={
             <>
               统一走 OpenAI 兼容协议（base_url + api_key + models）。
+              支持本地端点（Ollama / LM Studio / vLLM）；本地 API Key 可留空。
               {isAdmin
                 ? ' 管理员可在此增删改，改动写入 data/providers.yaml 并即时热更路由。'
                 : ' 当前账号为只读，需要管理员权限才能修改。'}
@@ -447,6 +514,7 @@ function ProviderDialog(props: {
       : [{ id: '', role: 'general' }],
   )
   const [busy, setBusy] = useState(false)
+  const [probeBusy, setProbeBusy] = useState(false)
 
   const updateModel = (idx: number, patch: Partial<ModelInfo>) => {
     setModels((ms) => ms.map((m, i) => (i === idx ? { ...m, ...patch } : m)))
@@ -454,6 +522,49 @@ function ProviderDialog(props: {
   const addModel = () => setModels((ms) => [...ms, { id: '', role: 'general' }])
   const removeModel = (idx: number) =>
     setModels((ms) => (ms.length <= 1 ? ms : ms.filter((_, i) => i !== idx)))
+
+  const applyPreset = (preset: LocalPreset) => {
+    setName(preset.name)
+    setBaseUrl(preset.base_url)
+    setModels(preset.models.map((m) => ({ ...m })))
+    if (!isEdit) setApiKey('')
+    toast.success(`已填入 ${preset.label} 预设`, {
+      description: '可再点「探测模型」拉取本机实际列表',
+    })
+  }
+
+  const runProbe = async (mergeModels: boolean) => {
+    if (!baseUrl.trim()) {
+      toast.error('请先填写 base_url')
+      return
+    }
+    setProbeBusy(true)
+    try {
+      const resp = await api.probeProvider({
+        base_url: baseUrl.trim(),
+        api_key: apiKey.trim() || undefined,
+      })
+      toast.success(`连通成功，发现 ${resp.models.length} 个模型`)
+      if (mergeModels) {
+        setModels((prev) => {
+          const byId = new Map(
+            prev
+              .filter((m) => m.id.trim())
+              .map((m) => [m.id.trim(), { id: m.id.trim(), role: m.role || 'general' }]),
+          )
+          for (const id of resp.models) {
+            if (!byId.has(id)) byId.set(id, { id, role: 'general' })
+          }
+          const next = [...byId.values()]
+          return next.length ? next : [{ id: '', role: 'general' }]
+        })
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : '探测失败')
+    } finally {
+      setProbeBusy(false)
+    }
+  }
 
   const submit = async () => {
     const cleanModels = models
@@ -469,10 +580,6 @@ function ProviderDialog(props: {
     }
     if (cleanModels.length === 0) {
       toast.error('至少配置一个模型（模型 ID 不能为空）')
-      return
-    }
-    if (!isEdit && !apiKey.trim()) {
-      toast.error('请填写 API Key（新增供应商时必填）')
       return
     }
 
@@ -516,23 +623,44 @@ function ProviderDialog(props: {
           <DialogTitle>{isEdit ? `编辑供应商 · ${provider?.name}` : '新增供应商'}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
+          {!isEdit && (
+            <div className="space-y-1.5">
+              <Label>本地预设</Label>
+              <div className="flex flex-wrap gap-2">
+                {LOCAL_PRESETS.map((preset) => (
+                  <Button
+                    key={preset.id}
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => applyPreset(preset)}
+                  >
+                    {preset.label}
+                  </Button>
+                ))}
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                点选后只填表单，不会立即保存；API Key 本地可留空。
+              </p>
+            </div>
+          )}
           <Field label="供应商名称">
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="如 Kimi / 通义千问 / DeepSeek"
+              placeholder="如 Kimi / Ollama / LM Studio"
             />
           </Field>
           <Field label="base_url（OpenAI 兼容接口地址）">
             <Input
               value={baseUrl}
               onChange={(e) => setBaseUrl(e.target.value)}
-              placeholder="https://api.moonshot.cn/v1"
+              placeholder="https://api.moonshot.cn/v1 或 http://127.0.0.1:11434/v1"
             />
           </Field>
           <Field
             label={
-              isEdit ? 'API Key（留空表示不修改）' : 'API Key'
+              isEdit ? 'API Key（留空表示不修改）' : 'API Key（本地可留空）'
             }
           >
             <Input
@@ -543,8 +671,8 @@ function ProviderDialog(props: {
                 isEdit
                   ? provider && hasApiKey(provider)
                     ? `当前：${provider.api_key_preview}（留空则不改）`
-                    : '未配置，输入以设置'
-                  : 'sk-...'
+                    : '未配置，输入以设置；本地可继续留空'
+                  : '本地可留空；云端填 sk-...'
               }
             />
           </Field>
@@ -566,12 +694,32 @@ function ProviderDialog(props: {
 
           {}
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <Label>模型列表</Label>
-              <Button size="sm" variant="outline" onClick={addModel}>
-                <Plus className="h-3.5 w-3.5" />
-                加一个模型
-              </Button>
+              <div className="flex flex-wrap gap-1.5">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={probeBusy || busy}
+                  onClick={() => void runProbe(false)}
+                >
+                  <Radio className="h-3.5 w-3.5" />
+                  {probeBusy ? '探测中…' : '测试连通'}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={probeBusy || busy}
+                  onClick={() => void runProbe(true)}
+                >
+                  <Cpu className="h-3.5 w-3.5" />
+                  探测模型
+                </Button>
+                <Button size="sm" variant="outline" onClick={addModel}>
+                  <Plus className="h-3.5 w-3.5" />
+                  加一个模型
+                </Button>
+              </div>
             </div>
             <div className="space-y-2">
               {models.map((m, idx) => (
@@ -580,7 +728,7 @@ function ProviderDialog(props: {
                     className="flex-1"
                     value={m.id}
                     onChange={(e) => updateModel(idx, { id: e.target.value })}
-                    placeholder="模型 ID，如 kimi-k2.6"
+                    placeholder="模型 ID，如 llama3.2 / kimi-k2.6"
                   />
                   <Select
                     value={String(m.role)}
@@ -611,6 +759,7 @@ function ProviderDialog(props: {
             </div>
             <p className="text-[11px] text-muted-foreground">
               至少一个模型；role 决定路由角色（general 通用 / fast 快 / complex 复杂 / vision 识图）。
+              「探测模型」会调用端点 /models 并合并进列表。
             </p>
           </div>
         </div>
@@ -618,7 +767,7 @@ function ProviderDialog(props: {
           <Button variant="outline" onClick={props.onClose}>
             取消
           </Button>
-          <Button onClick={submit} disabled={busy}>
+          <Button onClick={submit} disabled={busy || probeBusy}>
             {busy ? '保存中…' : isEdit ? '保存' : '创建'}
           </Button>
         </DialogFooter>

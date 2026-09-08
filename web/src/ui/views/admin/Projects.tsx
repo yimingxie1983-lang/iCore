@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { ColumnDef } from '@tanstack/react-table'
 import { useNavigate } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, Eye, FolderKanban, Pause, Play, Snowflake, Sun, Trash2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Eye, FolderKanban, Gauge, List, Pause, Play, Snowflake, Sun, Trash2 } from 'lucide-react'
 
 import { api, type AdminProject } from '@/client/services/client'
 import { Button } from '@/ui/widgets/ui/button'
@@ -25,13 +25,18 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/ui/widgets/ui/alert-dialog'
+import { ToggleGroup, ToggleGroupItem } from '@/ui/widgets/ui/toggle-group'
 import { DataTable } from '@/ui/widgets/ui/data-table'
 import { toast } from '@/ui/widgets/ui/sonner'
 import PageHeader from '@/ui/widgets/common/PageHeader'
 import { parseBackendTime } from '@/shared/foundation/utils'
+import ProjectCockpit from './ProjectCockpit'
 
 // 管理列表一次展示全部项目（上限 500，超出走分页）
 const PAGE_SIZE = 500
+const VIEW_KEY = 'icore:admin-projects:view'
+
+type ViewMode = 'list' | 'cockpit'
 
 function fmtDate(s?: string | null): string {
   if (!s) return '—'
@@ -79,6 +84,21 @@ export default function AdminProjects() {
   const [status, setStatus] = useState<'all' | 'active' | 'paused' | 'frozen'>('all')
   const [offset, setOffset] = useState(0)
   const [deleteTarget, setDeleteTarget] = useState<AdminProject | null>(null)
+  const [view, setView] = useState<ViewMode>(() => {
+    try {
+      return localStorage.getItem(VIEW_KEY) === 'cockpit' ? 'cockpit' : 'list'
+    } catch {
+      return 'list'
+    }
+  })
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(VIEW_KEY, view)
+    } catch {
+      // 忽略存储不可用
+    }
+  }, [view])
 
   useEffect(() => {
     setOffset(0)
@@ -102,9 +122,20 @@ export default function AdminProjects() {
     queryKey: ['admin-projects', params],
     queryFn: () => api.adminListProjects(params),
     refetchInterval: 15_000,
+    enabled: view === 'list',
   })
 
-  const invalidate = () => qc.invalidateQueries({ queryKey: ['admin-projects'] })
+  const { data: stats, isLoading: statsLoading } = useQuery({
+    queryKey: ['admin-projects-stats'],
+    queryFn: () => api.adminProjectStats(),
+    refetchInterval: 15_000,
+    enabled: view === 'cockpit',
+  })
+
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ['admin-projects'] })
+    qc.invalidateQueries({ queryKey: ['admin-projects-stats'] })
+  }
 
   const changeStatus = useMutation({
     mutationFn: (input: {
@@ -248,10 +279,35 @@ export default function AdminProjects() {
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 lg:p-6">
       <PageHeader
         title="项目管理"
-        description="查看系统内全部项目，按创建者、日期、名称与运行状态筛选；可暂停运行、冻结或删除项目。"
+        description={
+          view === 'cockpit'
+            ? '全实例项目驾驶舱：状态、Token 消耗与对应费用时序。'
+            : '查看系统内全部项目，按创建者、日期、名称与运行状态筛选；可暂停运行、冻结或删除项目。'
+        }
         icon={FolderKanban}
+        actions={
+          <ToggleGroup
+            type="single"
+            value={view}
+            onValueChange={(v) => v && setView(v as ViewMode)}
+            className="h-9"
+          >
+            <ToggleGroupItem value="list" size="sm" aria-label="列表">
+              <List />
+              <span className="hidden sm:inline">列表</span>
+            </ToggleGroupItem>
+            <ToggleGroupItem value="cockpit" size="sm" aria-label="驾驶舱">
+              <Gauge />
+              <span className="hidden sm:inline">驾驶舱</span>
+            </ToggleGroupItem>
+          </ToggleGroup>
+        }
       />
 
+      {view === 'cockpit' ? (
+        <ProjectCockpit data={stats} isLoading={statsLoading} />
+      ) : (
+        <>
       <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-card p-3">
         <div className="flex min-w-[180px] flex-col gap-1">
           <label className="text-xs text-muted-foreground">名称</label>
@@ -316,7 +372,7 @@ export default function AdminProjects() {
           data={data?.items ?? []}
           isLoading={isLoading}
           emptyText="暂无匹配的项目"
-          pageSize={Math.max(data?.items.length ?? 0, 1)}
+          pageSize={PAGE_SIZE}
         />
         <div className="flex flex-wrap items-center justify-between gap-2 pt-2 text-xs text-muted-foreground">
           <span>
@@ -367,6 +423,8 @@ export default function AdminProjects() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+        </>
+      )}
     </div>
   )
 }

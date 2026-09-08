@@ -27,7 +27,7 @@ class SwitchPersonaTool(BaseTool):
             "适用于'接下来这段对话用专家视角持续推进'的场景。"
             "如果只是想用别的视角跑一次性子任务后回到当前人格，请用 as_persona 而非本工具。"
             "可用 persona 通过 list_personas 查看；典型如 master / clinician / researcher / "
-            "data_analyst / writer / coder。"
+            "data_analyst / writer / coder / ml_engineer。"
         )
 
     def get_schema(self) -> dict:
@@ -43,7 +43,7 @@ class SwitchPersonaTool(BaseTool):
                             "type": "string",
                             "description": (
                                 "目标人格 id（与 personas/{id}.md 一致），"
-                                "如 clinician / researcher / data_analyst / writer / coder / master。"
+                                "如 clinician / researcher / data_analyst / writer / coder / ml_engineer / master。"
                                 "切回主调度视角传 'master'。"
                             ),
                         },
@@ -116,7 +116,7 @@ class SwitchPersonaTool(BaseTool):
                 output=(
                     f"未找到 persona '{persona_id}'。"
                     "请先用 list_personas 查询可用 id；"
-                    "常见 id：master / clinician / researcher / data_analyst / writer / coder。"
+                    "常见 id：master / clinician / researcher / data_analyst / writer / coder / ml_engineer。"
                 ),
                 error=f"persona_not_found: {persona_id}",
             )

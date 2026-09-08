@@ -27,7 +27,7 @@ class AsPersonaTool(BaseTool):
     def description(self) -> str:
         return (
             "以另一个 persona（人格/视角）临时启动一个子任务，跑完返回结果，不污染主对话。"
-            "可用 persona 通过 list_personas 查看；典型如 clinician/researcher/data_analyst/writer。"
+            "可用 persona 通过 list_personas 查看；典型如 clinician/researcher/data_analyst/writer/ml_engineer。"
         )
 
     def get_schema(self) -> dict:
@@ -43,7 +43,7 @@ class AsPersonaTool(BaseTool):
                             "type": "string",
                             "description": (
                                 "目标人格 id（与 personas/{id}.md 一致），"
-                                "如 clinician / researcher / data_analyst / writer"
+                                "如 clinician / researcher / data_analyst / writer / ml_engineer"
                             ),
                         },
                         "task": {
@@ -118,7 +118,7 @@ class AsPersonaTool(BaseTool):
                 output=(
                     f"未找到 persona '{persona_id}'。"
                     "请先用 list_personas 查询可用 id；"
-                    "可用列表通常包含 master / clinician / researcher / data_analyst / writer。"
+                    "可用列表通常包含 master / clinician / researcher / data_analyst / writer / ml_engineer。"
                 ),
                 error=f"persona_not_found: {persona_id}",
             )

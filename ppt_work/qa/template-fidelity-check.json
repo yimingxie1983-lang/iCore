@@ -1,0 +1,13 @@
+{
+  "status": "pass",
+  "checkedAt": "2026-08-17T14:04:56.118Z",
+  "workspace": "D:\\Codex\\Code\\iCore\\cancer_claw_share_20260722_1757\\ppt_work",
+  "finalPptx": "D:\\Codex\\Code\\iCore\\cancer_claw_share_20260722_1757\\ppt_work\\final.pptx",
+  "starterPptx": "D:\\Codex\\Code\\iCore\\cancer_claw_share_20260722_1757\\ppt_work\\template-starter.pptx",
+  "mapPath": "D:\\Codex\\Code\\iCore\\cancer_claw_share_20260722_1757\\ppt_work\\template-frame-map.json",
+  "starterLayoutDir": "D:\\Codex\\Code\\iCore\\cancer_claw_share_20260722_1757\\ppt_work\\template-starter-layout",
+  "finalLayoutDir": "D:\\Codex\\Code\\iCore\\cancer_claw_share_20260722_1757\\ppt_work\\final-layout",
+  "editDir": "D:\\Codex\\Code\\iCore\\cancer_claw_share_20260722_1757\\ppt_work",
+  "issueCount": 0,
+  "issues": []
+}

@@ -150,7 +150,7 @@ const TOOL_NARRATIVE_TEMPLATES: Record<string, ToolTemplate> = {
   task_charter: (args) => {
     const action = String(args.action || '')
     if (action === 'init') return { icon: '📋', text: '这是个长任务，先立个契约写明阶段……' }
-    if (action === 'advance_stage') return { icon: '➡️', text: '当前阶段完成，推进到下一阶段……' }
+    if (action === 'advance_stage') return { icon: '➡️', text: '当前阶段完成，自动推进到下一阶段……' }
     if (action === 'log_event') return { icon: '📌', text: '随手记一笔关键进展……' }
     if (action === 'finalize') return { icon: '🏁', text: '全任务完成，归档契约……' }
     return { icon: '📋', text: `更新任务契约（${action}）……` }
@@ -170,6 +170,17 @@ const TOOL_NARRATIVE_TEMPLATES: Record<string, ToolTemplate> = {
 
   attempt_completion: () => ({ icon: '🎯', text: '整理一下，准备给你最终答复……' }),
 
+  train_run: (args) => {
+    const action = String(args.action || '')
+    if (action === 'runtime') return { icon: '⚡', text: '探测本机训练环境和 CUDA……' }
+    if (action === 'design') return { icon: '⚡', text: '按你的描述生成训练方案……' }
+    if (action === 'confirm') return { icon: '⚡', text: '在沙箱里启动本机训练……' }
+    if (action === 'cancel') return { icon: '⚡', text: '取消当前训练任务……' }
+    if (action === 'log') return { icon: '⚡', text: '读取训练日志……' }
+    if (action === 'list') return { icon: '⚡', text: '查看最近的训练任务……' }
+    return { icon: '⚡', text: '查看本机训练进度……' }
+  },
+
   default: (args) => ({
     icon: '🔧',
     text: `调用工具 \`${args._tool || '...'}\`……`,
@@ -185,51 +196,127 @@ function templateOf(tool: string, args: Record<string, unknown>): { icon: string
 type BriefTemplate = (args: Record<string, unknown>) => string
 
 const TOOL_BRIEF_TEMPLATES: Record<string, BriefTemplate> = {
-  http_fetch: (args) => `查阅 ${extractHost(args.url)}`,
-  http_post: () => '提交请求',
+  http_fetch: (args) => {
+    const host = extractHost(args.url)
+    let path = ''
+    if (typeof args.url === 'string') {
+      try {
+        path = new URL(args.url).pathname || ''
+      } catch {
+        /* ignore */
+      }
+    }
+    const shortPath =
+      path && path !== '/' ? truncate(path.replace(/\/+$/, ''), 36) : ''
+    return shortPath ? `查阅 ${host}${shortPath}` : `查阅 ${host}`
+  },
+  http_post: (args) => {
+    const host = extractHost(args.url)
+    return host && host !== '某个网站' ? `提交到 ${host}` : '提交请求'
+  },
 
   file_ops: (args) => {
     const action = String(args.action || 'read')
-    const path = truncate(String(args.path || ''), 40)
-    if (action === 'read') return `读取 ${path}`
-    if (action === 'write') return `保存 ${path}`
-    if (action === 'list') return `列出 ${path}`
-    if (action === 'delete') return `删除 ${path}`
-    return `${action} ${path}`
+    const rawPath = String(args.path || args.file || '')
+    const path = truncate(rawPath, 48)
+    const base = rawPath.split(/[/\\]/).filter(Boolean).pop() || path
+    if (action === 'read') return path ? `读取 ${base}` : '读取文件'
+    if (action === 'write') return path ? `写入 ${base}` : '写入文件'
+    if (action === 'list') return path ? `列出 ${path}` : '列出目录'
+    if (action === 'delete') return path ? `删除 ${base}` : '删除文件'
+    if (action === 'append') return path ? `追加 ${base}` : '追加文件'
+    if (action === 'str_replace' || action === 'replace') {
+      return path ? `修改 ${base}` : '修改文件'
+    }
+    return path ? `${action} ${base}` : action
   },
 
-  code_exec: () => '运行计算',
-  shell_exec: () => '执行命令',
+  code_exec: (args) => {
+    const code = String(args.code || args.script || '')
+    const first = code
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .find((l) => l && !l.startsWith('#') && !l.startsWith('"""') && !l.startsWith("'''"))
+    if (first) return `运行 Python · ${truncate(first, 42)}`
+    return '运行 Python'
+  },
+  shell_exec: (args) => {
+    const cmd = String(args.command || args.cmd || '').trim()
+    if (!cmd) return '执行命令'
+    const head = cmd.split(/\r?\n/)[0].trim()
+    return `运行 \`${truncate(head, 52)}\``
+  },
 
-  craft_search: (args) =>
-    String(args.action || 'search') === 'view' ? '读方法论正文' : '查方法论库',
+  craft_search: (args) => {
+    const action = String(args.action || 'search')
+    const q = String(args.query || args.craft_id || '')
+    if (action === 'view') {
+      return q ? `读方法论 ${truncate(q, 36)}` : '读方法论正文'
+    }
+    return q ? `查方法论「${truncate(q, 28)}」` : '查方法论库'
+  },
 
-  memory_recall: () => '查回忆',
+  memory_recall: (args) => {
+    const q = String(args.query || args.keyword || '')
+    return q ? `回忆「${truncate(q, 28)}」` : '查项目回忆'
+  },
 
   switch_persona: (args) => `切到 ${personaName(args.persona_id as string | undefined) || '?'} 视角`,
   as_persona: (args) => `借用 ${personaName(args.persona_id as string | undefined) || '?'} 视角`,
 
   ask_user: () => '准备提问',
-  enter_plan_mode: () => '写计划',
-  exit_plan_mode: () => '完成计划',
+  enter_plan_mode: () => '编写计划',
+  exit_plan_mode: () => '计划完成，开始执行',
 
   task_charter: (args) => {
     const action = String(args.action || '')
     if (action === 'init') return '建立任务契约'
-    if (action === 'advance_stage') return '推进阶段'
-    if (action === 'log_event') return '记录进展'
-    if (action === 'finalize') return '归档契约'
-    return `更新契约`
+    if (action === 'advance_stage') {
+      const summary = String(args.result_summary || '')
+      return summary
+        ? `完成阶段 · ${truncate(summary, 36)}`
+        : '推进到下一阶段'
+    }
+    if (action === 'log_event') {
+      const text = String(args.text || '')
+      return text ? `记录：${truncate(text, 36)}` : '记录进展'
+    }
+    if (action === 'finalize') return '归档任务契约'
+    return `更新契约（${action || '…'}）`
   },
 
-  self_inspect: () => '自检能力',
-  tool_activator: () => '激活工具',
-  activate_craft: () => '挂载方法论',
-  present_file: (args) => `展示 ${truncate(String(args.path || '?'), 30)}`,
-  attempt_completion: () => '准备最终回复',
+  self_inspect: () => '检查可用能力',
+  tool_activator: () => '激活按需工具',
+  activate_craft: (args) => {
+    const id = String(args.craft_id || '')
+    return id ? `挂载方法论 ${truncate(id, 28)}` : '挂载方法论'
+  },
+  present_file: (args) => {
+    const path = String(args.path || '')
+    const base = path.split(/[/\\]/).filter(Boolean).pop() || path
+    return base ? `展示 ${truncate(base, 36)}` : '展示文件'
+  },
+  attempt_completion: () => '整理最终答复',
 
-  dispatch_squad: () => '派发并行小队',
-  convene_council: () => '召开议会',
+  dispatch_squad: (args) => {
+    const title = String(args.title || args.goal || '')
+    return title ? `并行小队 · ${truncate(title, 32)}` : '派发并行小队'
+  },
+  convene_council: (args) => {
+    const q = String(args.question || '')
+    return q ? `召开议会 · ${truncate(q, 32)}` : '召开议会'
+  },
+
+  train_run: (args) => {
+    const action = String(args.action || '')
+    if (action === 'runtime') return '探测训练环境'
+    if (action === 'design') return '生成训练方案'
+    if (action === 'confirm') return '启动本机训练'
+    if (action === 'cancel') return '取消训练'
+    if (action === 'log') return '读取训练日志'
+    if (action === 'list') return '查看训练任务'
+    return '查看训练进度'
+  },
 
   default: (args) => String(args._tool || '调用工具'),
 }
@@ -238,6 +325,367 @@ function briefToolLabel(tool: string, args: Record<string, unknown>): string {
   const tpl = TOOL_BRIEF_TEMPLATES[tool]
   if (tpl) return tpl(args)
   return TOOL_BRIEF_TEMPLATES.default({ ...args, _tool: tool })
+}
+
+export function describeToolBrief(
+  tool: string,
+  args: Record<string, unknown> | string | undefined,
+  result?: { output?: string; error?: string; success?: boolean },
+): string {
+  let parsed: Record<string, unknown> = {}
+  if (typeof args === 'string' && args.trim()) {
+    try {
+      const v = JSON.parse(args)
+      if (v && typeof v === 'object' && !Array.isArray(v)) parsed = v as Record<string, unknown>
+    } catch {
+      /* ignore */
+    }
+  } else if (args && typeof args === 'object') {
+    parsed = args
+  }
+  const base = briefToolLabel(tool, parsed)
+  if (!result) return base
+
+  if (result.success === false || result.error) {
+    const err = firstLine(String(result.error || ''), 40)
+    return err ? `${base} · 失败：${err}` : `${base} · 失败`
+  }
+
+  const output = typeof result.output === 'string' ? result.output.trim() : ''
+  if (!output) return base
+
+  if (tool === 'shell_exec') {
+    const exitMatch = output.match(/exit[_\s]*code[:=\s]+(\d+)/i)
+    const code = exitMatch?.[1]
+    if (code && code !== '0') return `${base} · exit ${code}`
+    const last = output
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .slice(-1)[0]
+    if (last && last.length < 60 && !/^exit/i.test(last)) {
+      return `${base} · ${truncate(last, 40)}`
+    }
+    return base
+  }
+
+  if (tool === 'code_exec') {
+    const last = output
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .slice(-1)[0]
+    if (last) return `${base} · ${truncate(last, 36)}`
+    return base
+  }
+
+  if (tool === 'http_fetch') {
+    const titleMatch = output.match(/<title[^>]*>([^<]+)<\/title>/i)
+    if (titleMatch?.[1]) return `${base} · ${truncate(titleMatch[1].trim(), 28)}`
+    const count = output.match(COUNT_RE)
+    if (count?.[1] || count?.[2]) return `${base} · ${count[1] || count[2]} 条`
+    return base
+  }
+
+  if (tool === 'file_ops') {
+    const action = String(parsed.action || 'read')
+    if (action === 'list') {
+      const n = output.split(/\r?\n/).filter((l) => l.trim()).length
+      return n > 0 ? `${base} · ${n} 项` : base
+    }
+    if (action === 'read') {
+      const lines = output.split(/\r?\n/).length
+      return lines > 1 ? `${base} · ${lines} 行` : base
+    }
+  }
+
+  if (tool === 'craft_search') {
+    const m = output.match(COUNT_RE)
+    if (m?.[1] || m?.[2]) return `${base} · ${m[1] || m[2]} 个`
+  }
+
+  return base
+}
+
+/** 从思考正文提炼一行意图（Codex 风格），空则返回空串 */
+export function describeThinkingBrief(content: string, streaming?: boolean): string {
+  const text = clean(content || '')
+  if (!text) return streaming ? '正在想下一步怎么做…' : ''
+  const lines = text
+    .split(/\r?\n/)
+    .map((l) => l.replace(/^[\s>*#\-\d.、]+/, '').trim())
+    .filter((l) => l.length >= 4)
+  const first = lines[0] || text.slice(0, 80)
+  const sentence = first.split(/[。！？\n]/)[0]?.trim() || first
+  const body = truncate(sentence.replace(/\s+/g, ' '), 64)
+  return streaming ? `${body}…` : body
+}
+
+function parseArgsLoose(
+  args: Record<string, unknown> | string | undefined,
+): Record<string, unknown> {
+  if (typeof args === 'string' && args.trim()) {
+    try {
+      const v = JSON.parse(args)
+      if (v && typeof v === 'object' && !Array.isArray(v)) return v as Record<string, unknown>
+    } catch {
+      /* ignore */
+    }
+    return {}
+  }
+  if (args && typeof args === 'object') return args
+  return {}
+}
+
+function fileDisplayName(path: string): string {
+  const p = path.replace(/\\/g, '/').trim()
+  if (!p) return '文件'
+  const parts = p.split('/').filter(Boolean)
+  if (parts.length >= 2) return truncate(parts.slice(-2).join('/'), 48)
+  return truncate(parts[parts.length - 1] || p, 48)
+}
+
+function narrateShellCommand(cmd: string, running: boolean): string {
+  const head = cmd.split(/\r?\n/)[0].trim()
+  const lower = head.toLowerCase()
+  const verb = running ? '正在' : '已经'
+  if (/\bpytest\b|\bunittest\b|\bnpm test\b|\bvitest\b/.test(lower)) {
+    return `${verb}跑测试：${truncate(head, 56)}`
+  }
+  if (/\bpip\s+install\b|\bnpm\s+i(nstall)?\b|\byarn\s+add\b/.test(lower)) {
+    return `${verb}安装依赖：${truncate(head, 56)}`
+  }
+  if (/\bpython(\.exe)?\b|\bpy\b/.test(lower)) {
+    return `${verb}运行脚本：${truncate(head, 56)}`
+  }
+  if (/\bgit\s+status\b/.test(lower)) return `${verb}查看代码仓库状态`
+  if (/\bgit\s+diff\b/.test(lower)) return `${verb}查看代码改动`
+  if (/\bgit\s+log\b/.test(lower)) return `${verb}查看提交历史`
+  if (/\bgit\s+clone\b/.test(lower)) return `${verb}克隆代码仓库`
+  if (/^(dir|ls|Get-ChildItem)\b/i.test(head)) {
+    return `${verb}查看目录内容：${truncate(head, 48)}`
+  }
+  if (/^(type|cat|Get-Content)\b/i.test(head)) {
+    return `${verb}查看文件内容：${truncate(head, 48)}`
+  }
+  if (/\bcurl\b|\bwget\b|\binvoke-webrequest\b/i.test(lower)) {
+    return `${verb}下载或请求网络资源：${truncate(head, 48)}`
+  }
+  return `${verb}在终端执行：${truncate(head, 60)}`
+}
+
+function narrateCodeIntent(code: string, running: boolean): string {
+  const verb = running ? '正在用 Python' : '用 Python'
+  const lines = code
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter((l) => l && !l.startsWith('#') && !l.startsWith('"""') && !l.startsWith("'''"))
+  const joined = lines.slice(0, 8).join(' ')
+  if (/read_csv|pandas|DataFrame/.test(joined)) {
+    return `${verb}处理表格数据`
+  }
+  if (/matplotlib|seaborn|plotly|\.plot\(/.test(joined)) {
+    return `${verb}画图分析`
+  }
+  if (/sklearn|fit\(|predict\(/.test(joined)) {
+    return `${verb}做模型训练或预测`
+  }
+  if (/open\(.*['\"]w|to_csv|to_excel|json\.dump/.test(joined)) {
+    return `${verb}生成结果文件`
+  }
+  if (/requests\.|urllib|httpx/.test(joined)) {
+    return `${verb}请求网络数据`
+  }
+  const first = lines[0]
+  if (first) return `${verb}计算：${truncate(first, 48)}`
+  return `${verb}跑一段计算`
+}
+
+/**
+ * 主界面步骤：用通俗自然语言描述「具体在做什么」，
+ * 而不是工具名 / 合并计数。
+ */
+export function narrateToolStep(
+  tool: string,
+  args: Record<string, unknown> | string | undefined,
+  opts?: {
+    output?: string
+    error?: string
+    success?: boolean
+    running?: boolean
+  },
+): string {
+  const a = parseArgsLoose(args)
+  const running = Boolean(opts?.running)
+  const failed = opts?.success === false || Boolean(opts?.error)
+  const output = typeof opts?.output === 'string' ? opts.output.trim() : ''
+
+  let text = ''
+
+  if (tool === 'file_ops') {
+    const action = String(a.action || 'read')
+    const path = fileDisplayName(String(a.path || a.file || ''))
+    if (action === 'read') {
+      text = running ? `正在打开查看「${path}」` : `查看了「${path}」里的内容`
+    } else if (action === 'write') {
+      text = running ? `正在把内容写进「${path}」` : `把结果写进了「${path}」`
+    } else if (action === 'list') {
+      text = running ? `正在查看「${path}」目录有哪些文件` : `查看了「${path}」目录下的文件`
+    } else if (action === 'delete') {
+      text = running ? `正在删除「${path}」` : `删除了「${path}」`
+    } else if (action === 'append') {
+      text = running ? `正在往「${path}」追加内容` : `往「${path}」追加了内容`
+    } else if (action === 'str_replace' || action === 'replace') {
+      text = running ? `正在修改「${path}」里的内容` : `修改了「${path}」里的内容`
+    } else {
+      text = running ? `正在处理文件「${path}」` : `处理了文件「${path}」`
+    }
+    if (!running && !failed && action === 'list' && output) {
+      const n = output.split(/\r?\n/).filter((l) => l.trim()).length
+      if (n > 0) text += `，共 ${n} 项`
+    }
+  } else if (tool === 'shell_exec') {
+    const cmd = String(a.command || a.cmd || '').trim()
+    text = cmd
+      ? narrateShellCommand(cmd, running)
+      : running
+        ? '正在终端执行操作'
+        : '在终端执行了操作'
+    if (!running && !failed && output) {
+      const exitMatch = output.match(/exit[_\s]*code[:=\s]+(\d+)/i)
+      if (exitMatch?.[1] && exitMatch[1] !== '0') {
+        text += `（未成功，退出码 ${exitMatch[1]}）`
+      }
+    }
+  } else if (tool === 'code_exec') {
+    text = narrateCodeIntent(String(a.code || a.script || ''), running)
+    if (!running && !failed && output) {
+      const last = output
+        .split(/\r?\n/)
+        .map((l) => l.trim())
+        .filter(Boolean)
+        .slice(-1)[0]
+      if (last && last.length <= 48) text += `，得到：${truncate(last, 40)}`
+    }
+  } else if (tool === 'http_fetch') {
+    const host = extractHost(a.url)
+    text = running
+      ? `正在上网查阅「${host}」的资料`
+      : `查阅了「${host}」上的资料`
+    if (!running && !failed && output) {
+      const titleMatch = output.match(/<title[^>]*>([^<]+)<\/title>/i)
+      if (titleMatch?.[1]) text += `（${truncate(titleMatch[1].trim(), 28)}）`
+    }
+  } else if (tool === 'http_post') {
+    const host = extractHost(a.url)
+    text =
+      host && host !== '某个网站'
+        ? running
+          ? `正在向「${host}」提交数据`
+          : `已向「${host}」提交数据`
+        : running
+          ? '正在提交网络请求'
+          : '已提交网络请求'
+  } else if (tool === 'craft_search') {
+    const action = String(a.action || 'search')
+    const q = String(a.query || a.craft_id || '')
+    if (action === 'view') {
+      text = running
+        ? `正在阅读方法论「${truncate(q || '相关条目', 32)}」`
+        : `阅读了方法论「${truncate(q || '相关条目', 32)}」`
+    } else {
+      text = q
+        ? running
+          ? `正在方法论库里查找「${truncate(q, 28)}」`
+          : `在方法论库里查找了「${truncate(q, 28)}」`
+        : running
+          ? '正在方法论库里找现成做法'
+          : '在方法论库里找了现成做法'
+    }
+  } else if (tool === 'memory_recall') {
+    const q = String(a.query || a.keyword || '')
+    text = q
+      ? running
+        ? `正在回忆以前和「${truncate(q, 28)}」有关的经验`
+        : `回忆了以前和「${truncate(q, 28)}」有关的经验`
+      : running
+        ? '正在回忆以前做过的类似项目'
+        : '回忆了以前做过的类似项目'
+  } else if (tool === 'task_charter') {
+    const action = String(a.action || '')
+    if (action === 'init') {
+      text = running ? '正在把长任务拆成几个阶段' : '把长任务拆成了几个阶段'
+    } else if (action === 'advance_stage') {
+      const summary = String(a.result_summary || '').trim()
+      text = summary
+        ? `完成了当前阶段：${truncate(summary, 48)}`
+        : '当前阶段做完了，进入下一阶段'
+    } else if (action === 'log_event') {
+      const t = String(a.text || '').trim()
+      text = t ? `记下进展：${truncate(t, 48)}` : '记下了当前进展'
+    } else if (action === 'finalize') {
+      text = '整个任务收尾并归档'
+    } else {
+      text = '更新了任务安排'
+    }
+  } else if (tool === 'present_file') {
+    const path = fileDisplayName(String(a.path || ''))
+    text = running ? `正在把「${path}」展示给你` : `把「${path}」展示给你看`
+  } else if (tool === 'attempt_completion') {
+    text = running ? '正在整理最终答复' : '整理好了最终答复'
+  } else if (tool === 'enter_plan_mode') {
+    text = running ? '正在写执行计划' : '先写好了执行计划'
+  } else if (tool === 'exit_plan_mode') {
+    text = '计划对齐后，开始动手做'
+  } else if (tool === 'switch_persona' || tool === 'as_persona') {
+    const name = personaName((a.persona_id || a.persona) as string | undefined) || '专业视角'
+    text =
+      tool === 'switch_persona'
+        ? running
+          ? `正在切换到「${name}」视角`
+          : `切换到「${name}」视角继续处理`
+        : running
+          ? `正在临时借用「${name}」的视角`
+          : `临时借用了「${name}」的视角`
+  } else if (tool === 'dispatch_squad') {
+    const title = String(a.title || a.goal || '').trim()
+    text = title
+      ? running
+        ? `正在把任务拆开并行做：${truncate(title, 36)}`
+        : `把任务拆开并行处理了：${truncate(title, 36)}`
+      : running
+        ? '正在把任务拆成几个子任务并行做'
+        : '把任务拆成几个子任务并行做了'
+  } else if (tool === 'convene_council') {
+    const q = String(a.question || '').trim()
+    text = q
+      ? running
+        ? `正在组织讨论：${truncate(q, 40)}`
+        : `组织讨论了：${truncate(q, 40)}`
+      : running
+        ? '正在组织多视角讨论'
+        : '组织了多视角讨论'
+  } else if (tool === 'self_inspect') {
+    text = running ? '正在检查自己当前能用哪些能力' : '检查了自己当前能用的能力'
+  } else if (tool === 'activate_craft') {
+    const id = String(a.craft_id || '')
+    text = id
+      ? running
+        ? `正在启用方法论「${truncate(id, 28)}」`
+        : `启用了方法论「${truncate(id, 28)}」`
+      : running
+        ? '正在启用相关方法论'
+        : '启用了相关方法论'
+  } else {
+    const fallback = briefToolLabel(tool, { ...a, _tool: tool })
+    text = running ? `正在${fallback}` : `完成了：${fallback}`
+  }
+
+  if (failed) {
+    const err = firstLine(String(opts?.error || ''), 36)
+    return err ? `${text}，但没有成功：${err}` : `${text}，但没有成功`
+  }
+  return text
 }
 
 function clean(s: string): string {
@@ -1217,6 +1665,7 @@ if (import.meta.env?.DEV) {
     'activate_craft',
     'present_file',
     'attempt_completion',
+    'train_run',
   ]
   const missing = COMMON_TOOLS.filter((t) => !TOOL_NARRATIVE_TEMPLATES[t])
   if (missing.length > 0) {

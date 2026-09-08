@@ -26,6 +26,7 @@ from cancer_claw.agent.engine.agent import Agent
 from cancer_claw.agent.engine.agent_factory import get_or_create_agent as _factory_get_or_create
 from cancer_claw.agent.engine.system_agents import MASTER_AGENT_ID, SYSTEM_AGENT_IDS
 from cancer_claw.db import get_db
+from cancer_claw.services.privacy.desensitizer import desensitize_text
 
 logger = structlog.get_logger()
 router = APIRouter()
@@ -101,6 +102,12 @@ def _prepend_attachments(
     for f in valid:
         lines.append(f"- {f.name}（{f.path}，{_human_size(f.size)}）")
     return "\n".join(lines) + "\n\n" + message
+
+def _desensitize_chat_message(message: str, *, project_id: str | None = None) -> str:
+    if not settings.privacy.enabled or not settings.privacy.desensitize_on_chat_input:
+        return message
+    ctx = f"chat:{project_id}" if project_id else "chat"
+    return desensitize_text(message, context=ctx).text
 
 _IMAGE_EXTS: set[str] = {
     ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp",
@@ -478,7 +485,7 @@ async def _resolve_session_for_chat(
                     "VALUES (?, ?, ?, ?, '', 0, 0, 'active')",
                     (
                         final_sid,
-                        agent._bound_workspace.project_root.name
+                        agent._bound_workspace.resolved_project_id()
                         if agent._bound_workspace else "",
                         agent.id,
                         derived_title,
@@ -570,7 +577,10 @@ async def chat_stream(
         )
 
 
-    text_with_files = _prepend_attachments(body.message, body.attached_files)
+    text_with_files = _prepend_attachments(
+        _desensitize_chat_message(body.message, project_id=project_id),
+        body.attached_files,
+    )
 
     final_message: str | list[dict] = await _build_user_content(
         project_id, text_with_files, body.attached_files,
@@ -812,7 +822,10 @@ async def chat_sync(
     before_tokens = agent._total_tokens
 
 
-    text_with_files = _prepend_attachments(body.message, body.attached_files)
+    text_with_files = _prepend_attachments(
+        _desensitize_chat_message(body.message, project_id=project_id),
+        body.attached_files,
+    )
     pid_for_image = project_id or "default"
     final_message: str | list[dict] = await _build_user_content(
         pid_for_image, text_with_files, body.attached_files,

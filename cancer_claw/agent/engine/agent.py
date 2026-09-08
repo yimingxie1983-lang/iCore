@@ -285,6 +285,10 @@ class Agent:
         self._charter_stage_just_advanced: bool = False
         self._charter_stage_done_index: int = 0
         self._charter_stage_done_name: str = ""
+        self._charter_stage_next_index: int = 0
+        self._charter_stage_next_name: str = ""
+        self._charter_all_done: bool = False
+        self._auto_advance_count: int = 0
 
 
 
@@ -588,6 +592,29 @@ class Agent:
 
 
 
+        self._refresh_charter()
+
+    async def bind_local_workspace(self, project_id: str, root: Path) -> None:
+        """把智能体绑到本机目录（客户端模式）。不走 projects_dir/<id>/workspace。"""
+        from cancer_claw.db import get_db
+        from cancer_claw.capabilities.toolkit.workspace import build_workspace_for_local_root
+
+        db = await get_db()
+        cursor = await db.execute("SELECT id, name FROM projects WHERE id = ?", (project_id,))
+        row = await cursor.fetchone()
+        if not row:
+            self._bound_workspace = None
+            self._bound_project_name = None
+            self._evolution_project_id = None
+            self._working_memory = None
+            return
+
+        resolved = Path(root).expanduser().resolve()
+        self._bound_project_name = (row[1] if len(row) > 1 else None) or resolved.name
+        self._bound_workspace = build_workspace_for_local_root(resolved, project_id)
+        self._evolution_project_id = project_id
+        self._working_memory = WorkingMemory(project_id, self.id)
+        self._refresh_project_instructions()
         self._refresh_charter()
 
     def _maybe_reinject_master_plan(self) -> None:
@@ -917,14 +944,54 @@ class Agent:
         name = str(data.get("stage_done") or "")
         if idx <= 0 or not name:
             return
+        try:
+            next_idx = int(data.get("stage_next_index") or 0)
+        except (TypeError, ValueError):
+            next_idx = 0
+        next_name = str(data.get("stage_next_name") or "")
         self._charter_stage_just_advanced = True
         self._charter_stage_done_index = idx
         self._charter_stage_done_name = name
+        self._charter_stage_next_index = next_idx
+        self._charter_stage_next_name = next_name
+        self._charter_all_done = bool(data.get("all_done"))
         logger.debug(
             "charter_stage_tracked",
             agent_id=self.id,
             stage_index=idx,
             stage_name=name,
+            stage_next_index=next_idx,
+            all_done=self._charter_all_done,
+        )
+
+    def _should_auto_advance_after_completion(self) -> bool:
+        if not settings.charter.auto_advance_stages:
+            return False
+        if not self._charter_stage_just_advanced:
+            return False
+        if self._charter_all_done or self._charter_stage_next_index <= 0:
+            return False
+        max_n = max(1, int(settings.charter.auto_advance_max_stages or 20))
+        if self._auto_advance_count >= max_n:
+            logger.info(
+                "charter_auto_advance_cap",
+                agent_id=self.id,
+                count=self._auto_advance_count,
+                max=max_n,
+            )
+            return False
+        return True
+
+    def _build_auto_advance_continue_message(self) -> str:
+        done_idx = self._charter_stage_done_index
+        done_name = self._charter_stage_done_name or f"阶段{done_idx}"
+        next_idx = self._charter_stage_next_index
+        next_name = self._charter_stage_next_name or f"阶段{next_idx}"
+        return (
+            f"[框架自动推进] 阶段 {done_idx}「{done_name}」已完成并开始沉淀。"
+            f"请立即继续执行阶段 {next_idx}「{next_name}」。"
+            f"不要向用户确认是否继续；除非缺少关键决策、数据或凭证，否则不要调用 ask_user。"
+            f"完成本阶段后同样先 advance_stage 再 attempt_completion。"
         )
 
     def _maybe_inject_charter_init_hint(self, user_message: str | list[dict]) -> None:
@@ -1280,17 +1347,38 @@ class Agent:
             return 0
         return len(msgs)
 
+    def _is_subtask_clone(self) -> bool:
+        return "#" in (self.id or "") or getattr(self, "_delegator", None) is not None
+
+    async def _ensure_user_session(self) -> None:
+        if self._current_session_id:
+            return
+        if self._is_subtask_clone():
+            parent = getattr(self, "_delegator", None)
+            parent_sid = (
+                getattr(parent, "_current_session_id", None) if parent is not None else None
+            )
+            if parent_sid:
+                self._current_session_id = parent_sid
+                self._sync_session_hint_to_memory()
+            return
+        try:
+            await self.start_or_resume_session(None)
+        except Exception as e:
+            logger.warning("session_auto_start_failed", agent_id=self.id, error=str(e))
+
     async def _upsert_current_session_index(self, *, status: str = "active") -> None:
 
         if not self._current_session_id:
+            return
+        if self._is_subtask_clone():
             return
         if self._bound_workspace is None:
             return
 
 
         try:
-            project_root = self._bound_workspace.project_root
-            project_id = project_root.name
+            project_id = self._bound_workspace.resolved_project_id()
         except Exception:
             return
 
@@ -1365,11 +1453,7 @@ class Agent:
 
 
 
-        if not self._current_session_id:
-            try:
-                await self.start_or_resume_session(None)
-            except Exception as e:
-                logger.warning("session_auto_start_failed", agent_id=self.id, error=str(e))
+        await self._ensure_user_session()
 
         queue: asyncio.Queue = asyncio.Queue()
 
@@ -1475,7 +1559,11 @@ class Agent:
         carrier._charter_stage_just_advanced = False
         carrier._charter_stage_done_index = 0
         carrier._charter_stage_done_name = ""
-        carrier._current_session_id = None
+        carrier._charter_stage_next_index = 0
+        carrier._charter_stage_next_name = ""
+        carrier._charter_all_done = False
+        carrier._auto_advance_count = 0
+        carrier._current_session_id = self._current_session_id
         carrier._delegator = self
         carrier._event_sink = None
         carrier._depth = 0
@@ -1716,14 +1804,7 @@ class Agent:
             await self.prepare()
 
 
-        if not self._current_session_id:
-            try:
-                await self.start_or_resume_session(None)
-            except Exception as e:
-                logger.warning("session_auto_start_failed", agent_id=self.id, error=str(e))
-
-
-
+        await self._ensure_user_session()
 
         att_metas = getattr(self, "_pending_attachment_metas", None)
         self._pending_attachment_metas = None
@@ -1778,6 +1859,10 @@ class Agent:
         self._charter_stage_just_advanced = False
         self._charter_stage_done_index = 0
         self._charter_stage_done_name = ""
+        self._charter_stage_next_index = 0
+        self._charter_stage_next_name = ""
+        self._charter_all_done = False
+        self._auto_advance_count = 0
 
         self._consecutive_text_only = 0
         await self._state_machine.transition_to(AgentState.RUNNING, "开始推理")
@@ -1799,6 +1884,7 @@ class Agent:
 
 
         _bg_monitor_queue: list[dict] = []
+        _stage_reports: list[str] = []
 
         try:
             for iteration in range(MAX_ITERATIONS):
@@ -2179,13 +2265,72 @@ class Agent:
 
 
                         clean_final = strip_ts_prefix(final_content)
-                        yield {"type": "message", "content": clean_final}
+                        if _stage_reports:
+                            _stage_reports.append(clean_final)
+                            display_final = "\n\n---\n\n".join(_stage_reports)
+                        else:
+                            display_final = clean_final
+                        yield {"type": "message", "content": display_final}
+
+                        if self._should_auto_advance_after_completion():
+                            done_idx = self._charter_stage_done_index
+                            done_name = self._charter_stage_done_name
+                            next_idx = self._charter_stage_next_index
+                            next_name = self._charter_stage_next_name
+                            self._auto_advance_count += 1
+                            if not _stage_reports:
+                                _stage_reports.append(clean_final)
+                            yield {
+                                "type": "notice",
+                                "level": "info",
+                                "content": (
+                                    f"阶段 {done_idx}「{done_name}」完成，"
+                                    f"自动继续阶段 {next_idx}「{next_name}」"
+                                    f"（{self._auto_advance_count}/"
+                                    f"{settings.charter.auto_advance_max_stages}）"
+                                ),
+                            }
+                            print(
+                                f"[{_ag}] → 阶段自动推进 "
+                                f"{done_idx}→{next_idx}「{next_name}」",
+                                flush=True,
+                            )
+                            self._schedule_evolution_after_task(
+                                completed_normally=True,
+                                user_message=user_message,
+                                final_response=clean_final,
+                                iterations=iteration + 1,
+                                clear_context=False,
+                                stage_just_advanced=True,
+                                stage_index=done_idx,
+                                stage_name=done_name,
+                            )
+                            continue_msg = self._build_auto_advance_continue_message()
+                            self._charter_stage_just_advanced = False
+                            self._charter_stage_done_index = 0
+                            self._charter_stage_done_name = ""
+                            self._charter_stage_next_index = 0
+                            self._charter_stage_next_name = ""
+                            self._charter_all_done = False
+                            self._refresh_charter()
+                            self._context.add_message("user", continue_msg)
+                            final_content = display_final
+                            _completion_requested = False
+                            continue
+
                         if self._working_memory:
                             try:
-                                await self._working_memory.save_turn("assistant", clean_final)
+                                await self._working_memory.save_turn(
+                                    "assistant", display_final
+                                )
                             except Exception as _save_err:
-                                logger.warning("real_time_persist_failed", agent_id=self.id, error=str(_save_err))
+                                logger.warning(
+                                    "real_time_persist_failed",
+                                    agent_id=self.id,
+                                    error=str(_save_err),
+                                )
                         completed_normally = True
+                        final_content = display_final
                         break
 
                     print(f"[{_ag}]   本轮工具执行完毕 | 累计={dict(self._tool_usage_this_turn)}", flush=True)
@@ -2819,6 +2964,11 @@ class Agent:
         if tool_name == "project_open":
             kwargs["_agent"] = self
 
+        if tool_name == "train_run":
+            kwargs.setdefault("project_id", self._evolution_project_id or "")
+            kwargs["_current_user"] = self._current_user
+            kwargs["_agent"] = self
+
 
         logger.info("tool_executing", agent=self.name, tool=tool_name, args_preview=arguments_json[:200])
         with tool_workspace_scope(self._bound_workspace):
@@ -2865,6 +3015,10 @@ class Agent:
         user_message: str | list[dict] = "",
         final_response: str = "",
         iterations: int = 0,
+        clear_context: bool = True,
+        stage_just_advanced: bool | None = None,
+        stage_index: int | None = None,
+        stage_name: str | None = None,
     ) -> None:
 
         if not settings.evolution.enabled or not settings.evolution.auto_after_task:
@@ -2893,39 +3047,54 @@ class Agent:
 
         excerpt_snapshot = self._format_conversation_excerpt()
         tools_snapshot = self._tools_invoked_summary_block()
+        _stage_adv = (
+            self._charter_stage_just_advanced
+            if stage_just_advanced is None
+            else stage_just_advanced
+        )
+        _stage_idx = (
+            self._charter_stage_done_index if stage_index is None else stage_index
+        )
+        _stage_nm = (
+            self._charter_stage_done_name if stage_name is None else stage_name
+        )
 
         loop.create_task(self._evolution_background_job(
             conversation_excerpt=excerpt_snapshot,
             tools_invoked_summary=tools_snapshot,
+            stage_just_advanced=_stage_adv,
+            stage_index=_stage_idx,
+            stage_name=_stage_nm,
         ))
         logger.info(
             "evolution_route_scheduled",
             agent_id=self.id,
             project_id=self._evolution_project_id,
+            clear_context=clear_context,
+            stage_advanced=_stage_adv,
+            stage_index=_stage_idx,
         )
 
-
-
-
-
-
-
-
-
-
-        self._context.clear_messages()
+        if clear_context:
+            self._context.clear_messages()
 
     async def _evolution_background_job(
         self,
         *,
         conversation_excerpt: str | None = None,
         tools_invoked_summary: str | None = None,
+        stage_just_advanced: bool | None = None,
+        stage_index: int | None = None,
+        stage_name: str | None = None,
     ) -> None:
 
         try:
             ctx = await self._build_evolution_route_context(
                 conversation_excerpt=conversation_excerpt,
                 tools_invoked_summary=tools_invoked_summary,
+                stage_just_advanced=stage_just_advanced,
+                stage_index=stage_index,
+                stage_name=stage_name,
             )
 
             result = await EvolutionFactory().run_route(ctx)
@@ -3179,6 +3348,9 @@ class Agent:
         *,
         conversation_excerpt: str | None = None,
         tools_invoked_summary: str | None = None,
+        stage_just_advanced: bool | None = None,
+        stage_index: int | None = None,
+        stage_name: str | None = None,
     ) -> EvolutionRouteContext:
 
         prior, crafts_l1 = await self._load_evolution_catalog()
@@ -3201,7 +3373,15 @@ class Agent:
             existing_crafts_l1=crafts_l1,
             prior_memory_excerpt=prior,
 
-            stage_just_advanced=self._charter_stage_just_advanced,
-            stage_index=self._charter_stage_done_index,
-            stage_name=self._charter_stage_done_name,
+            stage_just_advanced=(
+                self._charter_stage_just_advanced
+                if stage_just_advanced is None
+                else stage_just_advanced
+            ),
+            stage_index=(
+                self._charter_stage_done_index if stage_index is None else stage_index
+            ),
+            stage_name=(
+                self._charter_stage_done_name if stage_name is None else stage_name
+            ),
         )

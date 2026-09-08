@@ -1,0 +1,2407 @@
+{
+  "schema": "openai.presentation.layout/v4",
+  "unit": "px",
+  "slide": {
+    "aid": "sl/y90nupkv",
+    "id": "y90nupkv",
+    "slide": 1,
+    "layoutId": "/ppt/slideLayouts/slideLayout1.xml",
+    "layoutName": "标题幻灯片",
+    "layoutType": "title",
+    "masterLayoutId": "/ppt/slideMasters/slideMaster1.xml",
+    "frame": {
+      "left": 0,
+      "top": 0,
+      "width": 1280,
+      "height": 720
+    }
+  },
+  "theme": {
+    "colorSchemeName": "WPS",
+    "colors": {
+      "accent1": "#4874CB",
+      "accent2": "#EE822F",
+      "accent3": "#F2BA02",
+      "accent4": "#75BD42",
+      "accent5": "#30C0B4",
+      "accent6": "#E54C5E",
+      "dk1": "#000000",
+      "lt1": "#FFFFFF",
+      "dk2": "#44546A",
+      "lt2": "#E7E6E6",
+      "hlink": "#0026E5",
+      "folHlink": "#7E1FAD"
+    },
+    "fontScheme": {
+      "name": "WPS",
+      "majorFont": {
+        "latinTypeface": "Calibri"
+      },
+      "minorFont": {
+        "latinTypeface": "Calibri"
+      }
+    },
+    "typefaces": [
+      "Calibri"
+    ]
+  },
+  "inheritedLayers": [
+    {
+      "scope": "layout",
+      "id": "/ppt/slideLayouts/slideLayout1.xml",
+      "name": "标题幻灯片",
+      "type": "title",
+      "parentLayoutId": "/ppt/slideMasters/slideMaster1.xml",
+      "elements": [
+        {
+          "order": 1,
+          "kind": "shape",
+          "scope": "layout",
+          "aid": "template/layout//ppt/slideLayouts/slideLayout1.xml/2",
+          "id": "2",
+          "name": "标题 1",
+          "bbox": [
+            160,
+            117.83,
+            960,
+            250.67
+          ],
+          "text": "单击此处编辑母版标题样式",
+          "textPreview": "单击此处编辑母版标题样式",
+          "resolvedTextStyle": {
+            "anchor": 3,
+            "verticalAlignment": "bottom"
+          },
+          "paragraphs": [
+            {
+              "index": 1,
+              "text": "单击此处编辑母版标题样式",
+              "runs": [
+                {
+                  "index": 1,
+                  "text": "单击此处编辑母版标题样式"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "order": 2,
+          "kind": "shape",
+          "scope": "layout",
+          "aid": "template/layout//ppt/slideLayouts/slideLayout1.xml/3",
+          "id": "3",
+          "name": "副标题 2",
+          "bbox": [
+            160,
+            378.17,
+            960,
+            173.83
+          ],
+          "text": "单击此处编辑母版副标题样式",
+          "textPreview": "单击此处编辑母版副标题样式",
+          "paragraphs": [
+            {
+              "index": 1,
+              "text": "单击此处编辑母版副标题样式",
+              "runs": [
+                {
+                  "index": 1,
+                  "text": "单击此处编辑母版副标题样式"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "order": 3,
+          "kind": "shape",
+          "scope": "layout",
+          "aid": "template/layout//ppt/slideLayouts/slideLayout1.xml/4",
+          "id": "4",
+          "name": "日期占位符 3",
+          "bbox": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "order": 4,
+          "kind": "shape",
+          "scope": "layout",
+          "aid": "template/layout//ppt/slideLayouts/slideLayout1.xml/5",
+          "id": "5",
+          "name": "页脚占位符 4",
+          "bbox": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "order": 5,
+          "kind": "shape",
+          "scope": "layout",
+          "aid": "template/layout//ppt/slideLayouts/slideLayout1.xml/6",
+          "id": "6",
+          "name": "灯片编号占位符 5",
+          "bbox": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "scope": "master",
+      "id": "/ppt/slideMasters/slideMaster1.xml",
+      "type": "master",
+      "elements": [
+        {
+          "order": 1,
+          "kind": "shape",
+          "scope": "master",
+          "aid": "template/master//ppt/slideMasters/slideMaster1.xml/2",
+          "id": "2",
+          "name": "标题占位符 1",
+          "bbox": [
+            88,
+            38.33,
+            1104,
+            139.17
+          ],
+          "geometry": "rect",
+          "text": "单击此处编辑母版标题样式",
+          "textPreview": "单击此处编辑母版标题样式",
+          "resolvedTextStyle": {
+            "anchor": 2,
+            "vertical": 1,
+            "verticalAlignment": "middle",
+            "autoFit": "shrinkText",
+            "insets": {
+              "top": 4.8,
+              "right": 9.6,
+              "bottom": 4.8,
+              "left": 9.6
+            }
+          },
+          "paragraphs": [
+            {
+              "index": 1,
+              "text": "单击此处编辑母版标题样式",
+              "runs": [
+                {
+                  "index": 1,
+                  "text": "单击此处编辑母版标题样式"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "order": 2,
+          "kind": "shape",
+          "scope": "master",
+          "aid": "template/master//ppt/slideMasters/slideMaster1.xml/3",
+          "id": "3",
+          "name": "文本占位符 2",
+          "bbox": [
+            88,
+            191.67,
+            1104,
+            456.83
+          ],
+          "geometry": "rect",
+          "text": "单击此处编辑母版文本样式\n第二级\n第三级\n第四级\n第五级",
+          "textPreview": "单击此处编辑母版文本样式 | 第二级 | 第三级 | 第四级 | 第五级",
+          "resolvedTextStyle": {
+            "vertical": 1,
+            "autoFit": "shrinkText",
+            "insets": {
+              "top": 4.8,
+              "right": 9.6,
+              "bottom": 4.8,
+              "left": 9.6
+            }
+          },
+          "paragraphs": [
+            {
+              "index": 1,
+              "text": "单击此处编辑母版文本样式",
+              "runs": [
+                {
+                  "index": 1,
+                  "text": "单击此处编辑母版文本样式"
+                }
+              ]
+            },
+            {
+              "index": 2,
+              "text": "第二级",
+              "runs": [
+                {
+                  "index": 1,
+                  "text": "第二级"
+                }
+              ]
+            },
+            {
+              "index": 3,
+              "text": "第三级",
+              "runs": [
+                {
+                  "index": 1,
+                  "text": "第三级"
+                }
+              ]
+            },
+            {
+              "index": 4,
+              "text": "第四级",
+              "runs": [
+                {
+                  "index": 1,
+                  "text": "第四级"
+                }
+              ]
+            },
+            {
+              "index": 5,
+              "text": "第五级",
+              "runs": [
+                {
+                  "index": 1,
+                  "text": "第五级"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "order": 3,
+          "kind": "shape",
+          "scope": "master",
+          "aid": "template/master//ppt/slideMasters/slideMaster1.xml/4",
+          "id": "4",
+          "name": "日期占位符 3",
+          "bbox": [
+            88,
+            667.33,
+            288,
+            38.33
+          ],
+          "geometry": "rect",
+          "resolvedTextStyle": {
+            "anchor": 2,
+            "vertical": 1,
+            "verticalAlignment": "middle",
+            "insets": {
+              "top": 4.8,
+              "right": 9.6,
+              "bottom": 4.8,
+              "left": 9.6
+            }
+          }
+        },
+        {
+          "order": 4,
+          "kind": "shape",
+          "scope": "master",
+          "aid": "template/master//ppt/slideMasters/slideMaster1.xml/5",
+          "id": "5",
+          "name": "页脚占位符 4",
+          "bbox": [
+            424,
+            667.33,
+            432,
+            38.33
+          ],
+          "geometry": "rect",
+          "resolvedTextStyle": {
+            "anchor": 2,
+            "vertical": 1,
+            "verticalAlignment": "middle",
+            "insets": {
+              "top": 4.8,
+              "right": 9.6,
+              "bottom": 4.8,
+              "left": 9.6
+            }
+          }
+        },
+        {
+          "order": 5,
+          "kind": "shape",
+          "scope": "master",
+          "aid": "template/master//ppt/slideMasters/slideMaster1.xml/6",
+          "id": "6",
+          "name": "灯片编号占位符 5",
+          "bbox": [
+            904,
+            667.33,
+            288,
+            38.33
+          ],
+          "geometry": "rect",
+          "resolvedTextStyle": {
+            "anchor": 2,
+            "vertical": 1,
+            "verticalAlignment": "middle",
+            "insets": {
+              "top": 4.8,
+              "right": 9.6,
+              "bottom": 4.8,
+              "left": 9.6
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "elements": [
+    {
+      "order": 1,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/7qp4be9c",
+      "id": "4",
+      "name": "header-kicker-11",
+      "bbox": [
+        24,
+        12,
+        340,
+        20
+      ],
+      "geometry": "rect",
+      "text": "复旦大学智能医学研究院孵化企业",
+      "textPreview": "复旦大学智能医学研究院孵化企业",
+      "resolvedFontSize": 24,
+      "resolvedTextStyle": {
+        "fontSize": 24,
+        "typeface": "Calibri",
+        "color": "tx1",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "复旦大学智能医学研究院孵化企业"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "复旦大学智能医学研究院孵化企业",
+          "resolvedTextStyle": {
+            "fontSize": 11.53,
+            "color": "#242A32",
+            "bold": true
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "复旦大学智能医学研究院孵化企业",
+              "fontSize": 11.53,
+              "color": "#242A32",
+              "bold": true
+            }
+          ],
+          "bulletCharacter": "",
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 2,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/65g3298r",
+      "id": "5",
+      "name": "header-company-11",
+      "bbox": [
+        24,
+        32,
+        400,
+        28
+      ],
+      "geometry": "rect",
+      "text": "上海藤核智能科技有限公司",
+      "textPreview": "上海藤核智能科技有限公司",
+      "resolvedFontSize": 24,
+      "resolvedTextStyle": {
+        "fontSize": 24,
+        "typeface": "Calibri",
+        "color": "tx1",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "上海藤核智能科技有限公司"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "上海藤核智能科技有限公司",
+          "resolvedTextStyle": {
+            "fontSize": 16.53,
+            "color": "#101820",
+            "bold": true
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "上海藤核智能科技有限公司",
+              "fontSize": 16.53,
+              "color": "#101820",
+              "bold": true
+            }
+          ],
+          "bulletCharacter": "",
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 3,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/ts7md4r2",
+      "id": "6",
+      "name": "title-11",
+      "bbox": [
+        40,
+        61,
+        1195,
+        76
+      ],
+      "geometry": "rect",
+      "text": "案例｜iCore 临床辅助诊断：多源病历证据整合与下一步优先级",
+      "textPreview": "案例｜iCore 临床辅助诊断：多源病历证据整合与下一步优先级",
+      "resolvedFontSize": 25.51,
+      "resolvedTextStyle": {
+        "fontSize": 25.51,
+        "typeface": "Calibri",
+        "color": "#071F58",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "案例｜iCore 临床辅助诊断：多源病历证据整合与下一步优先级"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "案例｜iCore 临床辅助诊断：多源病历证据整合与下一步优先级",
+          "resolvedTextStyle": {
+            "fontSize": 25.51,
+            "typeface": "Calibri",
+            "color": "#071F58",
+            "bold": true
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "案例｜iCore 临床辅助诊断：多源病历证据整合与下一步优先级",
+              "fontSize": 25.51,
+              "typeface": "Calibri",
+              "color": "#071F58",
+              "bold": true
+            }
+          ],
+          "bulletCharacter": "",
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 4,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/sryl4zqx",
+      "id": "7",
+      "name": "footer-rule-11",
+      "bbox": [
+        24,
+        677,
+        1232,
+        1.4
+      ],
+      "geometry": "rect",
+      "fillColor": "#071F58",
+      "lineColor": "#071F58",
+      "lineWidth": 0
+    },
+    {
+      "order": 5,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/utg3698n",
+      "id": "9",
+      "name": "footer-11",
+      "bbox": [
+        31,
+        685,
+        680,
+        22
+      ],
+      "geometry": "rect",
+      "text": "iCore 医学智能体元框架 | 上海藤核智能科技有限公司",
+      "textPreview": "iCore 医学智能体元框架 | 上海藤核智能科技有限公司",
+      "resolvedFontSize": 24,
+      "resolvedTextStyle": {
+        "fontSize": 24,
+        "typeface": "Calibri",
+        "color": "tx1",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "iCore 医学智能体元框架 | 上海藤核智能科技有限公司"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "iCore 医学智能体元框架 | 上海藤核智能科技有限公司",
+          "resolvedTextStyle": {
+            "fontSize": 11.53,
+            "color": "#071F58",
+            "bold": true
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "iCore 医学智能体元框架 | 上海藤核智能科技有限公司",
+              "fontSize": 11.53,
+              "color": "#071F58",
+              "bold": true
+            }
+          ],
+          "bulletCharacter": "",
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 6,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/wn6dc7eh",
+      "id": "10",
+      "name": "page-11",
+      "bbox": [
+        1222,
+        682,
+        36,
+        25
+      ],
+      "geometry": "rect",
+      "text": "1",
+      "textPreview": "1",
+      "resolvedFontSize": 14,
+      "resolvedTextStyle": {
+        "fontSize": 14,
+        "typeface": "Calibri",
+        "color": "#071F58",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "1"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "1",
+          "resolvedTextStyle": {
+            "fontSize": 14,
+            "typeface": "Calibri",
+            "color": "#071F58",
+            "bold": true
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "1",
+              "fontSize": 14,
+              "typeface": "Calibri",
+              "color": "#071F58",
+              "bold": true
+            }
+          ],
+          "bulletCharacter": "",
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 7,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/hofulsf2",
+      "id": "11",
+      "name": "dx-workflow-band",
+      "bbox": [
+        40,
+        150,
+        1200,
+        106
+      ],
+      "geometry": "rect",
+      "lineColor": "#D6E0F0",
+      "lineWidth": 1
+    },
+    {
+      "order": 8,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/ul4vaxgb",
+      "id": "12",
+      "name": "dx-workflow-title",
+      "bbox": [
+        64,
+        166,
+        320,
+        24
+      ],
+      "geometry": "rect",
+      "text": "iCore 工作流",
+      "textPreview": "iCore 工作流",
+      "resolvedFontSize": 18,
+      "resolvedTextStyle": {
+        "fontSize": 18,
+        "typeface": "Calibri",
+        "color": "#071F58",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "iCore 工作流"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "iCore 工作流",
+          "resolvedTextStyle": {
+            "fontSize": 18,
+            "typeface": "Calibri",
+            "color": "#071F58",
+            "bold": true
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "iCore 工作流",
+              "fontSize": 18,
+              "typeface": "Calibri",
+              "color": "#071F58",
+              "bold": true
+            }
+          ],
+          "bulletCharacter": "",
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 9,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/vmdcj2xw",
+      "id": "13",
+      "name": "dx-workflow-subtitle",
+      "bbox": [
+        64,
+        193,
+        320,
+        42
+      ],
+      "geometry": "rect",
+      "text": "把非结构化病历转成\n可核验、可讨论的决策材料",
+      "textPreview": "把非结构化病历转成 | 可核验、可讨论的决策材料",
+      "resolvedFontSize": 12,
+      "resolvedTextStyle": {
+        "fontSize": 12,
+        "typeface": "Calibri",
+        "color": "#2F3B4B",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "把非结构化病历转成"
+          },
+          {
+            "index": 2,
+            "text": "可核验、可讨论的决策材料"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "把非结构化病历转成",
+          "resolvedTextStyle": {
+            "fontSize": 12,
+            "typeface": "Calibri",
+            "color": "#2F3B4B"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "把非结构化病历转成",
+              "fontSize": 12,
+              "typeface": "Calibri",
+              "color": "#2F3B4B"
+            }
+          ],
+          "bulletCharacter": "",
+          "marginLeft": 0
+        },
+        {
+          "index": 2,
+          "text": "可核验、可讨论的决策材料",
+          "resolvedTextStyle": {
+            "fontSize": 12,
+            "typeface": "Calibri",
+            "color": "#2F3B4B"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "可核验、可讨论的决策材料",
+              "fontSize": 12,
+              "typeface": "Calibri",
+              "color": "#2F3B4B"
+            }
+          ],
+          "bulletCharacter": "",
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 10,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/4r6dg7et",
+      "id": "14",
+      "name": "workflow-step-1-no",
+      "bbox": [
+        390,
+        172,
+        22,
+        22
+      ],
+      "geometry": "ellipse",
+      "text": "1",
+      "textPreview": "1",
+      "resolvedFontSize": 13,
+      "resolvedTextStyle": {
+        "fontSize": 13,
+        "typeface": "Calibri",
+        "color": "#FFFFFF",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "1"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "1",
+          "resolvedTextStyle": {
+            "fontSize": 13,
+            "typeface": "Calibri",
+            "color": "#FFFFFF",
+            "bold": true
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "1",
+              "fontSize": 13,
+              "typeface": "Calibri",
+              "color": "#FFFFFF",
+              "bold": true
+            }
+          ],
+          "bulletCharacter": "",
+          "marginLeft": 0
+        }
+      ],
+      "fillColor": "#EE822F",
+      "lineWidth": 0
+    },
+    {
+      "order": 11,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/5sfepcfe",
+      "id": "15",
+      "name": "workflow-step-1-heading",
+      "bbox": [
+        422,
+        172,
+        166,
+        20
+      ],
+      "geometry": "rect",
+      "text": "病历抽取",
+      "textPreview": "病历抽取",
+      "resolvedFontSize": 14,
+      "resolvedTextStyle": {
+        "fontSize": 14,
+        "typeface": "Calibri",
+        "color": "#071F58",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "病历抽取"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "病历抽取",
+          "resolvedTextStyle": {
+            "fontSize": 14,
+            "typeface": "Calibri",
+            "color": "#071F58",
+            "bold": true
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "病历抽取",
+              "fontSize": 14,
+              "typeface": "Calibri",
+              "color": "#071F58",
+              "bold": true
+            }
+          ],
+          "bulletCharacter": "",
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 12,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/ipovexwn",
+      "id": "16",
+      "name": "workflow-step-1-detail",
+      "bbox": [
+        422,
+        195,
+        166,
+        48
+      ],
+      "geometry": "rect",
+      "text": "主诉、超声/钼靶、穿刺、IHC、FISH、家族史",
+      "textPreview": "主诉、超声/钼靶、穿刺、IHC、FISH、家族史",
+      "resolvedFontSize": 12,
+      "resolvedTextStyle": {
+        "fontSize": 12,
+        "typeface": "Calibri",
+        "color": "#2F3B4B",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "主诉、超声/钼靶、穿刺、I"
+          },
+          {
+            "index": 2,
+            "text": "HC、FISH、家族史"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "主诉、超声/钼靶、穿刺、IHC、FISH、家族史",
+          "resolvedTextStyle": {
+            "fontSize": 12,
+            "typeface": "Calibri",
+            "color": "#2F3B4B"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "主诉、超声/钼靶、穿刺、IHC、FISH、家族史",
+              "fontSize": 12,
+              "typeface": "Calibri",
+              "color": "#2F3B4B"
+            }
+          ],
+          "bulletCharacter": "",
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 13,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/3qxwn2x8",
+      "id": "17",
+      "name": "workflow-step-2-no",
+      "bbox": [
+        603,
+        172,
+        22,
+        22
+      ],
+      "geometry": "ellipse",
+      "text": "2",
+      "textPreview": "2",
+      "resolvedFontSize": 13,
+      "resolvedTextStyle": {
+        "fontSize": 13,
+        "typeface": "Calibri",
+        "color": "#FFFFFF",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "2"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "2",
+          "resolvedTextStyle": {
+            "fontSize": 13,
+            "typeface": "Calibri",
+            "color": "#FFFFFF",
+            "bold": true
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "2",
+              "fontSize": 13,
+              "typeface": "Calibri",
+              "color": "#FFFFFF",
+              "bold": true
+            }
+          ],
+          "bulletCharacter": "",
+          "marginLeft": 0
+        }
+      ],
+      "fillColor": "#EE822F",
+      "lineWidth": 0
+    },
+    {
+      "order": 14,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/sfqdkrep",
+      "id": "18",
+      "name": "workflow-step-2-heading",
+      "bbox": [
+        635,
+        172,
+        166,
+        20
+      ],
+      "geometry": "rect",
+      "text": "关键锚定",
+      "textPreview": "关键锚定",
+      "resolvedFontSize": 14,
+      "resolvedTextStyle": {
+        "fontSize": 14,
+        "typeface": "Calibri",
+        "color": "#071F58",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "关键锚定"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "关键锚定",
+          "resolvedTextStyle": {
+            "fontSize": 14,
+            "typeface": "Calibri",
+            "color": "#071F58",
+            "bold": true
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "关键锚定",
+              "fontSize": 14,
+              "typeface": "Calibri",
+              "color": "#071F58",
+              "bold": true
+            }
+          ],
+          "bulletCharacter": "",
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 15,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/dgzetcfa",
+      "id": "19",
+      "name": "workflow-step-2-detail",
+      "bbox": [
+        635,
+        195,
+        166,
+        48
+      ],
+      "geometry": "rect",
+      "text": "HER2 扩增、ER-low、Ki-67、cN1、Ⅰ/ⅡB 分期",
+      "textPreview": "HER2 扩增、ER-low、Ki-67、cN1、Ⅰ/ⅡB 分期",
+      "resolvedFontSize": 12,
+      "resolvedTextStyle": {
+        "fontSize": 12,
+        "typeface": "Calibri",
+        "color": "#2F3B4B",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 3,
+        "lines": [
+          {
+            "index": 1,
+            "text": "HER2"
+          },
+          {
+            "index": 2,
+            "text": "扩增、ER-low、Ki-67、cN1"
+          },
+          {
+            "index": 3,
+            "text": "、Ⅰ/ⅡB 分期"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "HER2 扩增、ER-low、Ki-67、cN1、Ⅰ/ⅡB 分期",
+          "resolvedTextStyle": {
+            "fontSize": 12,
+            "typeface": "Calibri",
+            "color": "#2F3B4B"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "HER2 扩增、ER-low、Ki-67、cN1、Ⅰ/ⅡB 分期",
+              "fontSize": 12,
+              "typeface": "Calibri",
+              "color": "#2F3B4B"
+            }
+          ],
+          "bulletCharacter": "",
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 16,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/1cvuxc7e",
+      "id": "20",
+      "name": "workflow-step-3-no",
+      "bbox": [
+        816,
+        172,
+        22,
+        22
+      ],
+      "geometry": "ellipse",
+      "text": "3",
+      "textPreview": "3",
+      "resolvedFontSize": 13,
+      "resolvedTextStyle": {
+        "fontSize": 13,
+        "typeface": "Calibri",
+        "color": "#FFFFFF",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "3"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "3",
+          "resolvedTextStyle": {
+            "fontSize": 13,
+            "typeface": "Calibri",
+            "color": "#FFFFFF",
+            "bold": true
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "3",
+              "fontSize": 13,
+              "typeface": "Calibri",
+              "color": "#FFFFFF",
+              "bold": true
+            }
+          ],
+          "bulletCharacter": "",
+          "marginLeft": 0
+        }
+      ],
+      "fillColor": "#EE822F",
+      "lineWidth": 0
+    },
+    {
+      "order": 17,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/0bmd476t",
+      "id": "21",
+      "name": "workflow-step-3-heading",
+      "bbox": [
+        848,
+        172,
+        166,
+        20
+      ],
+      "geometry": "rect",
+      "text": "循证检索",
+      "textPreview": "循证检索",
+      "resolvedFontSize": 14,
+      "resolvedTextStyle": {
+        "fontSize": 14,
+        "typeface": "Calibri",
+        "color": "#071F58",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "循证检索"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "循证检索",
+          "resolvedTextStyle": {
+            "fontSize": 14,
+            "typeface": "Calibri",
+            "color": "#071F58",
+            "bold": true
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "循证检索",
+              "fontSize": 14,
+              "typeface": "Calibri",
+              "color": "#071F58",
+              "bold": true
+            }
+          ],
+          "bulletCharacter": "",
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 18,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/zadcv2p8",
+      "id": "22",
+      "name": "workflow-step-3-detail",
+      "bbox": [
+        848,
+        195,
+        166,
+        48
+      ],
+      "geometry": "rect",
+      "text": "NeoSphere、TRAIN-2、KATHERINE、POEMS、ER-low",
+      "textPreview": "NeoSphere、TRAIN-2、KATHERINE、POEMS、ER-low",
+      "resolvedFontSize": 12,
+      "resolvedTextStyle": {
+        "fontSize": 12,
+        "typeface": "Calibri",
+        "color": "#2F3B4B",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "NeoSphere、TRAIN-2、KATH"
+          },
+          {
+            "index": 2,
+            "text": "ERINE、POEMS、ER-low"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "NeoSphere、TRAIN-2、KATHERINE、POEMS、ER-low",
+          "resolvedTextStyle": {
+            "fontSize": 12,
+            "typeface": "Calibri",
+            "color": "#2F3B4B"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "NeoSphere、TRAIN-2、KATHERINE、POEMS、ER-low",
+              "fontSize": 12,
+              "typeface": "Calibri",
+              "color": "#2F3B4B"
+            }
+          ],
+          "bulletCharacter": "",
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 19,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/e94v2hon",
+      "id": "23",
+      "name": "workflow-step-4-no",
+      "bbox": [
+        1029,
+        172,
+        22,
+        22
+      ],
+      "geometry": "ellipse",
+      "text": "4",
+      "textPreview": "4",
+      "resolvedFontSize": 13,
+      "resolvedTextStyle": {
+        "fontSize": 13,
+        "typeface": "Calibri",
+        "color": "#FFFFFF",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "4"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "4",
+          "resolvedTextStyle": {
+            "fontSize": 13,
+            "typeface": "Calibri",
+            "color": "#FFFFFF",
+            "bold": true
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "4",
+              "fontSize": 13,
+              "typeface": "Calibri",
+              "color": "#FFFFFF",
+              "bold": true
+            }
+          ],
+          "bulletCharacter": "",
+          "marginLeft": 0
+        }
+      ],
+      "fillColor": "#EE822F",
+      "lineWidth": 0
+    },
+    {
+      "order": 20,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/90ve1w7q",
+      "id": "24",
+      "name": "workflow-step-4-heading",
+      "bbox": [
+        1061,
+        172,
+        166,
+        20
+      ],
+      "geometry": "rect",
+      "text": "医生确认",
+      "textPreview": "医生确认",
+      "resolvedFontSize": 14,
+      "resolvedTextStyle": {
+        "fontSize": 14,
+        "typeface": "Calibri",
+        "color": "#071F58",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "医生确认"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "医生确认",
+          "resolvedTextStyle": {
+            "fontSize": 14,
+            "typeface": "Calibri",
+            "color": "#071F58",
+            "bold": true
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "医生确认",
+              "fontSize": 14,
+              "typeface": "Calibri",
+              "color": "#071F58",
+              "bold": true
+            }
+          ],
+          "bulletCharacter": "",
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 21,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/ozmd8r65",
+      "id": "25",
+      "name": "workflow-step-4-detail",
+      "bbox": [
+        1061,
+        195,
+        166,
+        48
+      ],
+      "geometry": "rect",
+      "text": "鉴别、补充检查、治疗选项交经治医师与 MDT",
+      "textPreview": "鉴别、补充检查、治疗选项交经治医师与 MDT",
+      "resolvedFontSize": 12,
+      "resolvedTextStyle": {
+        "fontSize": 12,
+        "typeface": "Calibri",
+        "color": "#2F3B4B",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "鉴别、补充检查、治疗选项"
+          },
+          {
+            "index": 2,
+            "text": "交经治医师与 MDT"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "鉴别、补充检查、治疗选项交经治医师与 MDT",
+          "resolvedTextStyle": {
+            "fontSize": 12,
+            "typeface": "Calibri",
+            "color": "#2F3B4B"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "鉴别、补充检查、治疗选项交经治医师与 MDT",
+              "fontSize": 12,
+              "typeface": "Calibri",
+              "color": "#2F3B4B"
+            }
+          ],
+          "bulletCharacter": "",
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 22,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/nydczmpk",
+      "id": "26",
+      "name": "dx-workflow-split",
+      "bbox": [
+        386,
+        164,
+        1,
+        1
+      ],
+      "geometry": "rect",
+      "fillColor": "#BFCBD9",
+      "lineWidth": 0
+    },
+    {
+      "order": 23,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/mx4v6hoz",
+      "id": "27",
+      "name": "dx-patient-panel",
+      "bbox": [
+        40,
+        276,
+        350,
+        320
+      ],
+      "geometry": "rect",
+      "lineColor": "#D6E0F0",
+      "lineWidth": 1
+    },
+    {
+      "order": 24,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/p4bu5s76",
+      "id": "28",
+      "name": "dx-patient-heading",
+      "bbox": [
+        64,
+        296,
+        300,
+        22
+      ],
+      "geometry": "rect",
+      "text": "病例事实（合成 A001）",
+      "textPreview": "病例事实（合成 A001）",
+      "resolvedFontSize": 17,
+      "resolvedTextStyle": {
+        "fontSize": 17,
+        "typeface": "Calibri",
+        "color": "#071F58",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "病例事实（合成 A001）"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "病例事实（合成 A001）",
+          "resolvedTextStyle": {
+            "fontSize": 17,
+            "typeface": "Calibri",
+            "color": "#071F58",
+            "bold": true
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "病例事实（合成 A001）",
+              "fontSize": 17,
+              "typeface": "Calibri",
+              "color": "#071F58",
+              "bold": true
+            }
+          ],
+          "bulletCharacter": "",
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 25,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/432dwn6l",
+      "id": "29",
+      "name": "dx-patient-rule",
+      "bbox": [
+        64,
+        326,
+        302,
+        1
+      ],
+      "geometry": "rect",
+      "fillColor": "#D6E0F0",
+      "lineWidth": 0
+    },
+    {
+      "order": 26,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/uxgjq907",
+      "id": "30",
+      "name": "dx-patient-body",
+      "bbox": [
+        64,
+        340,
+        305,
+        235
+      ],
+      "geometry": "rect",
+      "text": "• 患者：38 岁未绝经女性，右乳无痛性增大肿块\n• 病理：浸润性癌 NST / IDC-NOS，Nottingham 3 级\n• 分子：HER2 IHC 2+，FISH HER2/CEP17=4.2 扩增；ER 8%，Ki-67 45%\n• 分期：cT2N1M0，AJCC ⅡB 期\n• 家族史：母亲 52 岁乳腺癌，姨母 55 岁卵巢癌",
+      "textPreview": "• 患者：38 岁未绝经女性，右乳无痛性增大肿块 | • 病理：浸润性癌 NST / IDC-NOS，Nottingham 3 级 | • 分子：HER2 IHC 2+，FISH HER2/CEP17=4.2 扩增；ER 8%，Ki-67 45% | • 分期：cT2N1M...",
+      "resolvedFontSize": 13.2,
+      "resolvedTextStyle": {
+        "fontSize": 13.2,
+        "typeface": "Calibri",
+        "color": "#2F3B4B",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 6,
+        "lines": [
+          {
+            "index": 1,
+            "text": "• 患者：38 岁未绝经女性，右乳无痛性增大肿块"
+          },
+          {
+            "index": 2,
+            "text": "• 病理：浸润性癌 NST / IDC-NOS，Nottingham 3 级"
+          },
+          {
+            "index": 3,
+            "text": "• 分子：HER2 IHC 2+，FISH HER2/CEP17=4.2"
+          },
+          {
+            "index": 4,
+            "text": "扩增；ER 8%，Ki-67 45%"
+          },
+          {
+            "index": 5,
+            "text": "• 分期：cT2N1M0，AJCC ⅡB 期"
+          },
+          {
+            "index": 6,
+            "text": "• 家族史：母亲 52 岁乳腺癌，姨母 55 岁卵巢癌"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "• 患者：38 岁未绝经女性，右乳无痛性增大肿块",
+          "resolvedTextStyle": {
+            "fontSize": 13.2,
+            "typeface": "Calibri",
+            "color": "#2F3B4B"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "• 患者：38 岁未绝经女性，右乳无痛性增大肿块",
+              "fontSize": 13.2,
+              "typeface": "Calibri",
+              "color": "#2F3B4B"
+            }
+          ],
+          "bulletCharacter": "",
+          "marginLeft": 0
+        },
+        {
+          "index": 2,
+          "text": "• 病理：浸润性癌 NST / IDC-NOS，Nottingham 3 级",
+          "resolvedTextStyle": {
+            "fontSize": 13.2,
+            "typeface": "Calibri",
+            "color": "#2F3B4B"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "• 病理：浸润性癌 NST / IDC-NOS，Nottingham 3 级",
+              "fontSize": 13.2,
+              "typeface": "Calibri",
+              "color": "#2F3B4B"
+            }
+          ],
+          "bulletCharacter": "",
+          "marginLeft": 0
+        },
+        {
+          "index": 3,
+          "text": "• 分子：HER2 IHC 2+，FISH HER2/CEP17=4.2 扩增；ER 8%，Ki-67 45%",
+          "resolvedTextStyle": {
+            "fontSize": 13.2,
+            "typeface": "Calibri",
+            "color": "#2F3B4B"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "• 分子：HER2 IHC 2+，FISH HER2/CEP17=4.2 扩增；ER 8%，Ki-67 45%",
+              "fontSize": 13.2,
+              "typeface": "Calibri",
+              "color": "#2F3B4B"
+            }
+          ],
+          "bulletCharacter": "",
+          "marginLeft": 0
+        },
+        {
+          "index": 4,
+          "text": "• 分期：cT2N1M0，AJCC ⅡB 期",
+          "resolvedTextStyle": {
+            "fontSize": 13.2,
+            "typeface": "Calibri",
+            "color": "#2F3B4B"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "• 分期：cT2N1M0，AJCC ⅡB 期",
+              "fontSize": 13.2,
+              "typeface": "Calibri",
+              "color": "#2F3B4B"
+            }
+          ],
+          "bulletCharacter": "",
+          "marginLeft": 0
+        },
+        {
+          "index": 5,
+          "text": "• 家族史：母亲 52 岁乳腺癌，姨母 55 岁卵巢癌",
+          "resolvedTextStyle": {
+            "fontSize": 13.2,
+            "typeface": "Calibri",
+            "color": "#2F3B4B"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "• 家族史：母亲 52 岁乳腺癌，姨母 55 岁卵巢癌",
+              "fontSize": 13.2,
+              "typeface": "Calibri",
+              "color": "#2F3B4B"
+            }
+          ],
+          "bulletCharacter": "",
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 27,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/vyp0je1s",
+      "id": "31",
+      "name": "dx-output-panel",
+      "bbox": [
+        410,
+        276,
+        830,
+        152
+      ],
+      "geometry": "rect",
+      "lineColor": "#D6E0F0",
+      "lineWidth": 1
+    },
+    {
+      "order": 28,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/wzy1szid",
+      "id": "32",
+      "name": "dx-output-heading",
+      "bbox": [
+        434,
+        294,
+        500,
+        22
+      ],
+      "geometry": "rect",
+      "text": "iCore 辅助判断输出",
+      "textPreview": "iCore 辅助判断输出",
+      "resolvedFontSize": 17,
+      "resolvedTextStyle": {
+        "fontSize": 17,
+        "typeface": "Calibri",
+        "color": "#071F58",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "iCore 辅助判断输出"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "iCore 辅助判断输出",
+          "resolvedTextStyle": {
+            "fontSize": 17,
+            "typeface": "Calibri",
+            "color": "#071F58",
+            "bold": true
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "iCore 辅助判断输出",
+              "fontSize": 17,
+              "typeface": "Calibri",
+              "color": "#071F58",
+              "bold": true
+            }
+          ],
+          "bulletCharacter": "",
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 29,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/h072l4jy",
+      "id": "33",
+      "name": "dx-output-body",
+      "bbox": [
+        434,
+        326,
+        785,
+        91
+      ],
+      "geometry": "rect",
+      "text": "• 核心分型：HER2 阳性型、ER-low、高增殖；腋窝淋巴结影像可疑（cN1），需病理证实\n• 鉴别排除：纤维腺瘤、增生结节、乳头状瘤、小叶癌、基底样/三阴性、炎性乳腺癌\n• 循证支撑：新辅助双靶与术后 T-DM1 阶梯均引用已核验 PMID，不用裸结论",
+      "textPreview": "• 核心分型：HER2 阳性型、ER-low、高增殖；腋窝淋巴结影像可疑（cN1），需病理证实 | • 鉴别排除：纤维腺瘤、增生结节、乳头状瘤、小叶癌、基底样/三阴性、炎性乳腺癌 | • 循证支撑：新辅助双靶与术后 T-DM1 阶梯均引用已核验 PMID，不用裸结论",
+      "resolvedFontSize": 13.2,
+      "resolvedTextStyle": {
+        "fontSize": 13.2,
+        "typeface": "Calibri",
+        "color": "#2F3B4B",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 3,
+        "lines": [
+          {
+            "index": 1,
+            "text": "• 核心分型：HER2 阳性型、ER-low、高增殖；腋窝淋巴结影像可疑（cN1），需病理证实"
+          },
+          {
+            "index": 2,
+            "text": "• 鉴别排除：纤维腺瘤、增生结节、乳头状瘤、小叶癌、基底样/三阴性、炎性乳腺癌"
+          },
+          {
+            "index": 3,
+            "text": "• 循证支撑：新辅助双靶与术后 T-DM1 阶梯均引用已核验 PMID，不用裸结论"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "• 核心分型：HER2 阳性型、ER-low、高增殖；腋窝淋巴结影像可疑（cN1），需病理证实",
+          "resolvedTextStyle": {
+            "fontSize": 13.2,
+            "typeface": "Calibri",
+            "color": "#2F3B4B"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "• 核心分型：HER2 阳性型、ER-low、高增殖；腋窝淋巴结影像可疑（cN1），需病理证实",
+              "fontSize": 13.2,
+              "typeface": "Calibri",
+              "color": "#2F3B4B"
+            }
+          ],
+          "bulletCharacter": "",
+          "marginLeft": 0
+        },
+        {
+          "index": 2,
+          "text": "• 鉴别排除：纤维腺瘤、增生结节、乳头状瘤、小叶癌、基底样/三阴性、炎性乳腺癌",
+          "resolvedTextStyle": {
+            "fontSize": 13.2,
+            "typeface": "Calibri",
+            "color": "#2F3B4B"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "• 鉴别排除：纤维腺瘤、增生结节、乳头状瘤、小叶癌、基底样/三阴性、炎性乳腺癌",
+              "fontSize": 13.2,
+              "typeface": "Calibri",
+              "color": "#2F3B4B"
+            }
+          ],
+          "bulletCharacter": "",
+          "marginLeft": 0
+        },
+        {
+          "index": 3,
+          "text": "• 循证支撑：新辅助双靶与术后 T-DM1 阶梯均引用已核验 PMID，不用裸结论",
+          "resolvedTextStyle": {
+            "fontSize": 13.2,
+            "typeface": "Calibri",
+            "color": "#2F3B4B"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "• 循证支撑：新辅助双靶与术后 T-DM1 阶梯均引用已核验 PMID，不用裸结论",
+              "fontSize": 13.2,
+              "typeface": "Calibri",
+              "color": "#2F3B4B"
+            }
+          ],
+          "bulletCharacter": "",
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 30,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/i1gje90j",
+      "id": "34",
+      "name": "dx-next-panel",
+      "bbox": [
+        410,
+        448,
+        830,
+        148
+      ],
+      "geometry": "rect",
+      "lineColor": "#D6E0F0",
+      "lineWidth": 1
+    },
+    {
+      "order": 31,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/j2pkne14",
+      "id": "35",
+      "name": "dx-next-heading",
+      "bbox": [
+        434,
+        466,
+        500,
+        22
+      ],
+      "geometry": "rect",
+      "text": "下一步优先级（供临床确认）",
+      "textPreview": "下一步优先级（供临床确认）",
+      "resolvedFontSize": 17,
+      "resolvedTextStyle": {
+        "fontSize": 17,
+        "typeface": "Calibri",
+        "color": "#071F58",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "下一步优先级（供临床确认）"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "下一步优先级（供临床确认）",
+          "resolvedTextStyle": {
+            "fontSize": 17,
+            "typeface": "Calibri",
+            "color": "#071F58",
+            "bold": true
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "下一步优先级（供临床确认）",
+              "fontSize": 17,
+              "typeface": "Calibri",
+              "color": "#071F58",
+              "bold": true
+            }
+          ],
+          "bulletCharacter": "",
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 32,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/43y1gji9",
+      "id": "36",
+      "name": "dx-next-body",
+      "bbox": [
+        434,
+        498,
+        785,
+        86
+      ],
+      "geometry": "rect",
+      "text": "① 胚系 BRCA1/2 检测 + 遗传咨询：直接影响手术范围与对侧/卵巢风险管理\n② 基线 LVEF/ECG 与腋窝淋巴结穿刺或标记夹：治疗前安全与准确分期\n③ 生殖医学评估生育力保存；新辅助选项 TCHP / THP，非 pCR 后考虑 T-DM1",
+      "textPreview": "① 胚系 BRCA1/2 检测 + 遗传咨询：直接影响手术范围与对侧/卵巢风险管理 | ② 基线 LVEF/ECG 与腋窝淋巴结穿刺或标记夹：治疗前安全与准确分期 | ③ 生殖医学评估生育力保存；新辅助选项 TCHP / THP，非 pCR 后考虑 T-DM1",
+      "resolvedFontSize": 13.2,
+      "resolvedTextStyle": {
+        "fontSize": 13.2,
+        "typeface": "Calibri",
+        "color": "#2F3B4B",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 3,
+        "lines": [
+          {
+            "index": 1,
+            "text": "① 胚系 BRCA1/2 检测 + 遗传咨询：直接影响手术范围与对侧/卵巢风险管理"
+          },
+          {
+            "index": 2,
+            "text": "② 基线 LVEF/ECG 与腋窝淋巴结穿刺或标记夹：治疗前安全与准确分期"
+          },
+          {
+            "index": 3,
+            "text": "③ 生殖医学评估生育力保存；新辅助选项 TCHP / THP，非 pCR 后考虑 T-DM1"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "① 胚系 BRCA1/2 检测 + 遗传咨询：直接影响手术范围与对侧/卵巢风险管理",
+          "resolvedTextStyle": {
+            "fontSize": 13.2,
+            "typeface": "Calibri",
+            "color": "#2F3B4B"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "① 胚系 BRCA1/2 检测 + 遗传咨询：直接影响手术范围与对侧/卵巢风险管理",
+              "fontSize": 13.2,
+              "typeface": "Calibri",
+              "color": "#2F3B4B"
+            }
+          ],
+          "bulletCharacter": "",
+          "marginLeft": 0
+        },
+        {
+          "index": 2,
+          "text": "② 基线 LVEF/ECG 与腋窝淋巴结穿刺或标记夹：治疗前安全与准确分期",
+          "resolvedTextStyle": {
+            "fontSize": 13.2,
+            "typeface": "Calibri",
+            "color": "#2F3B4B"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "② 基线 LVEF/ECG 与腋窝淋巴结穿刺或标记夹：治疗前安全与准确分期",
+              "fontSize": 13.2,
+              "typeface": "Calibri",
+              "color": "#2F3B4B"
+            }
+          ],
+          "bulletCharacter": "",
+          "marginLeft": 0
+        },
+        {
+          "index": 3,
+          "text": "③ 生殖医学评估生育力保存；新辅助选项 TCHP / THP，非 pCR 后考虑 T-DM1",
+          "resolvedTextStyle": {
+            "fontSize": 13.2,
+            "typeface": "Calibri",
+            "color": "#2F3B4B"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "③ 生殖医学评估生育力保存；新辅助选项 TCHP / THP，非 pCR 后考虑 T-DM1",
+              "fontSize": 13.2,
+              "typeface": "Calibri",
+              "color": "#2F3B4B"
+            }
+          ],
+          "bulletCharacter": "",
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 33,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/54r2poju",
+      "id": "37",
+      "name": "dx-safety-strip",
+      "bbox": [
+        40,
+        632,
+        1200,
+        34
+      ],
+      "geometry": "rect",
+      "lineColor": "#F1C46B",
+      "lineWidth": 1
+    },
+    {
+      "order": 34,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/y5wjip0z",
+      "id": "38",
+      "name": "dx-safety-text",
+      "bbox": [
+        64,
+        639,
+        1160,
+        22
+      ],
+      "geometry": "rect",
+      "text": "安全边界：A001 为合成数字孪生病历，非真实患者；iCore 只做证据整理与选项排序，最终诊断和治疗方案由经治医师结合患者意愿与 MDT 决定。",
+      "textPreview": "安全边界：A001 为合成数字孪生病历，非真实患者；iCore 只做证据整理与选项排序，最终诊断和治疗方案由经治医师结合患者意愿与 MDT 决定。",
+      "resolvedFontSize": 12,
+      "resolvedTextStyle": {
+        "fontSize": 12,
+        "typeface": "Calibri",
+        "color": "#7A4A00",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "安全边界：A001 为合成数字孪生病历，非真实患者；iCore 只做证据整理与选项排序，最终诊断和治疗方案由经治医师结合患者意愿与 MDT 决定。"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "安全边界：A001 为合成数字孪生病历，非真实患者；iCore 只做证据整理与选项排序，最终诊断和治疗方案由经治医师结合患者意愿与 MDT 决定。",
+          "resolvedTextStyle": {
+            "fontSize": 12,
+            "typeface": "Calibri",
+            "color": "#7A4A00",
+            "bold": true
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "安全边界：A001 为合成数字孪生病历，非真实患者；iCore 只做证据整理与选项排序，最终诊断和治疗方案由经治医师结合患者意愿与 MDT 决定。",
+              "fontSize": 12,
+              "typeface": "Calibri",
+              "color": "#7A4A00",
+              "bold": true
+            }
+          ],
+          "bulletCharacter": "",
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    }
+  ],
+  "composeRuns": []
+}

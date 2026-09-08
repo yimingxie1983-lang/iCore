@@ -15,6 +15,7 @@ import {
   Menu,
   MessageSquare,
   Network,
+  Newspaper,
   Receipt,
   Settings,
   ShieldCheck,
@@ -22,6 +23,7 @@ import {
   Sparkles,
   Users,
   Wallet,
+  Smartphone,
   Moon,
   Sun,
   X,
@@ -46,9 +48,7 @@ interface NavItem {
   label: string
   desc: string
   icon: React.ComponentType<{ className?: string }>
-
   perm: string
-
   feature?: string
 }
 
@@ -63,10 +63,12 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/agents', label: '智能体', icon: Bot, desc: 'soul + 人格库', perm: 'menu.agents' },
   { to: '/skills', label: '技能库', icon: Library, desc: 'SKILL.md 生态 / 拖拽上传', perm: 'menu.skills' },
   { to: '/memory', label: '记忆库', icon: BrainCircuit, desc: '项目 / 经验簿', perm: 'menu.memory' },
+  { to: '/insights', label: '行业资讯', icon: Newspaper, desc: '医学 AI 咨询墙', perm: 'menu.insights' },
+  { to: '/channels/wechat', label: '微信渠道', icon: Smartphone, desc: '本机桥 / 个人扫码绑定', perm: 'menu.chat' },
 ]
 
 const ADMIN_NAV_ITEMS: NavItem[] = [
-  { to: '/admin/projects', label: '项目管理', icon: FolderKanban, desc: '全量项目 / 暂停 / 冻结', perm: 'menu.project_manage' },
+  { to: '/admin/projects', label: '项目管理', icon: FolderKanban, desc: '列表 / 驾驶舱 / 暂停冻结', perm: 'menu.project_manage' },
   { to: '/providers', label: '模型供应商', icon: Network, desc: '路由 + API key', perm: 'menu.providers' },
   { to: '/admin/users', label: '用户管理', icon: Users, desc: '多用户 / 项目授权', perm: 'menu.users' },
   { to: '/admin/roles', label: '角色管理', icon: ShieldCheck, desc: 'RBAC 角色 / 权限分配', perm: 'menu.roles' },
@@ -260,7 +262,15 @@ function CreditsBadge() {
   )
 }
 
-function NavRow({ item, onNavigate }: { item: NavItem; onNavigate?: () => void }) {
+function NavRow({
+  item,
+  onNavigate,
+  badge,
+}: {
+  item: NavItem
+  onNavigate?: () => void
+  badge?: number
+}) {
   const Icon = item.icon
   return (
     <NavLink
@@ -302,6 +312,11 @@ function NavRow({ item, onNavigate }: { item: NavItem; onNavigate?: () => void }
             </div>
           </div>
           {isActive && <span className="h-1.5 w-1.5 rounded-full bg-secondary" />}
+          {badge != null && badge > 0 && (
+            <span className="ml-auto inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold leading-none text-destructive-foreground">
+              {badge > 99 ? '99+' : badge}
+            </span>
+          )}
         </>
       )}
     </NavLink>
@@ -448,10 +463,12 @@ function NavGroupSection({
   group,
   activePath,
   onNavigate,
+  badgeFor,
 }: {
   group: NavGroup
   activePath: string
   onNavigate?: () => void
+  badgeFor?: (item: NavItem) => number | undefined
 }) {
   const [open, setOpen] = useState(() => {
     try {
@@ -501,7 +518,12 @@ function NavGroupSection({
       {open && (
         <div id={`sidebar-group-${group.id}`} className="mt-1 space-y-0.5">
           {group.items.map((item) => (
-            <NavRow key={item.to} item={item} onNavigate={onNavigate} />
+            <NavRow
+              key={item.to}
+              item={item}
+              onNavigate={onNavigate}
+              badge={badgeFor ? badgeFor(item) : undefined}
+            />
           ))}
         </div>
       )}
@@ -513,10 +535,12 @@ function SidebarBody({
   groups,
   activePath,
   onNavigate,
+  insightsHits,
 }: {
   groups: NavGroup[]
   activePath: string
   onNavigate?: () => void
+  insightsHits?: number
 }) {
   const brand = useBrandVariant()
   return (
@@ -532,6 +556,9 @@ function SidebarBody({
             group={group}
             activePath={activePath}
             onNavigate={onNavigate}
+            badgeFor={(item) =>
+              item.to === '/insights' && insightsHits ? insightsHits : undefined
+            }
           />
         ))}
         <ProjectsNavSection activePath={activePath} onNavigate={onNavigate} />
@@ -574,6 +601,16 @@ export default function AppLayout() {
     retry: 0,
   })
 
+  const canSeeInsights = checkPermission(user, 'menu.insights')
+  const { data: insightsHitsData } = useQuery({
+    queryKey: ['insights-hits'],
+    queryFn: () => api.insightSubscriptionHits(),
+    enabled: canSeeInsights,
+    refetchInterval: 60_000,
+    retry: 0,
+  })
+  const insightsHits = insightsHitsData?.total_24h ?? 0
+
   const featureOn = (f?: string) =>
     !f || !!(features as Record<string, boolean> | undefined)?.[f]
 
@@ -608,7 +645,11 @@ export default function AppLayout() {
     <div className="flex h-screen min-h-0 bg-background">
       {}
       <aside className="hidden h-full min-h-0 w-72 shrink-0 flex-col overflow-hidden border-r border-sidebar-border bg-sidebar lg:flex">
-        <SidebarBody groups={groups} activePath={loc.pathname} />
+        <SidebarBody
+          groups={groups}
+          activePath={loc.pathname}
+          insightsHits={insightsHits}
+        />
       </aside>
 
       {}
@@ -635,6 +676,7 @@ export default function AppLayout() {
               groups={groups}
               activePath={loc.pathname}
               onNavigate={() => setMobileNavOpen(false)}
+              insightsHits={insightsHits}
             />
           </aside>
         </div>

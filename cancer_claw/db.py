@@ -315,6 +315,7 @@ _PG_ADD_COLUMNS = [
     ("projects", "owner_id", "TEXT"),
     ("projects", "visibility", "TEXT DEFAULT 'private'"),
     ("projects", "market_default_role", "TEXT DEFAULT 'viewer'"),
+    ("projects", "source", "TEXT NOT NULL DEFAULT 'web'"),
     ("projects", "status", "TEXT NOT NULL DEFAULT 'active'"),
     ("projects", "status_changed_at", "TIMESTAMP"),
     ("projects", "status_changed_by", "TEXT"),
@@ -344,6 +345,7 @@ async def _create_tables_pg(pool) -> None:
                     print(f"[db_migrate_pg] ⚠ skip ALTER {table}.{column}: {e}", flush=True)
             for index in _INDEX_SCHEMAS:
                 await conn.execute(index)
+            await _migrate_mark_cli_local_projects_pg(conn)
 
 _TABLE_SCHEMAS = [
 
@@ -392,6 +394,7 @@ _TABLE_SCHEMAS = [
         description TEXT DEFAULT '',
         workspace_path TEXT NOT NULL,
         owner_id TEXT,
+        source TEXT NOT NULL DEFAULT 'web',
         status TEXT NOT NULL DEFAULT 'active',
         status_changed_at TIMESTAMP,
         status_changed_by TEXT,
@@ -664,6 +667,42 @@ _TABLE_SCHEMAS = [
 
 
     """
+    CREATE TABLE IF NOT EXISTS insight_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        summary TEXT DEFAULT '',
+        source TEXT DEFAULT '',
+        url TEXT DEFAULT '',
+        category TEXT NOT NULL DEFAULT 'industry',
+        tags TEXT DEFAULT '[]',
+        published_at TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+
+    """
+    CREATE TABLE IF NOT EXISTS insight_sources (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        kind TEXT NOT NULL DEFAULT 'rss',
+        url TEXT NOT NULL,
+        category TEXT NOT NULL DEFAULT 'research',
+        enabled INTEGER NOT NULL DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+
+    """
+    CREATE TABLE IF NOT EXISTS insight_subscriptions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id TEXT NOT NULL,
+        keyword TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id)
+    )
+    """,
+
+    """
     CREATE TABLE IF NOT EXISTS conversation_history (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         project_id TEXT NOT NULL,
@@ -698,6 +737,35 @@ _TABLE_SCHEMAS = [
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (project_id) REFERENCES projects(id)
+    )
+    """,
+
+    """
+    CREATE TABLE IF NOT EXISTS channel_bindings (
+        id TEXT PRIMARY KEY,
+        channel TEXT NOT NULL,
+        external_scope_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        project_id TEXT NOT NULL,
+        session_id TEXT,
+        permissions_mode TEXT DEFAULT 'ask',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(channel, external_scope_id)
+    )
+    """,
+
+    """
+    CREATE TABLE IF NOT EXISTS channel_bind_codes (
+        code TEXT PRIMARY KEY,
+        channel TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        project_id TEXT NOT NULL,
+        permissions_mode TEXT DEFAULT 'ask',
+        expires_at REAL NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        consumed_at TIMESTAMP,
+        consumed_by TEXT
     )
     """,
 
@@ -853,6 +921,27 @@ _TABLE_SCHEMAS = [
 
 
     """
+    CREATE TABLE IF NOT EXISTS train_runs (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        user_id TEXT DEFAULT '',
+        brief TEXT DEFAULT '',
+        status TEXT NOT NULL DEFAULT 'designing',
+        design_json TEXT DEFAULT '',
+        python_exe TEXT DEFAULT '',
+        script_path TEXT DEFAULT '',
+        log_path TEXT DEFAULT '',
+        pid INTEGER,
+        metrics_json TEXT DEFAULT '',
+        error TEXT DEFAULT '',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        finished_at TIMESTAMP,
+        FOREIGN KEY (project_id) REFERENCES projects(id)
+    )
+    """,
+
+    """
     CREATE TABLE IF NOT EXISTS login_attempts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         identity TEXT NOT NULL,
@@ -928,6 +1017,15 @@ _INDEX_SCHEMAS = [
 
     "CREATE INDEX IF NOT EXISTS idx_login_attempts_identity ON login_attempts(identity, attempted_at DESC)",
     "CREATE INDEX IF NOT EXISTS idx_login_attempts_created ON login_attempts(attempted_at)",
+
+    "CREATE INDEX IF NOT EXISTS idx_insight_items_published ON insight_items(published_at DESC)",
+    "CREATE INDEX IF NOT EXISTS idx_insight_items_category ON insight_items(category, published_at DESC)",
+
+    "CREATE UNIQUE INDEX IF NOT EXISTS idx_insight_items_url ON insight_items(url) WHERE url <> '';",
+    "CREATE INDEX IF NOT EXISTS idx_insight_sources_kind ON insight_sources(kind, enabled)",
+    "CREATE INDEX IF NOT EXISTS idx_insight_subs_user ON insight_subscriptions(user_id)",
+
+    "CREATE INDEX IF NOT EXISTS idx_train_runs_project ON train_runs(project_id, created_at DESC)",
 ]
 
 async def _create_tables(db: aiosqlite.Connection):
@@ -993,6 +1091,10 @@ async def _create_tables(db: aiosqlite.Connection):
     await _migrate_add_column_if_missing(
         db, "projects", "status_changed_by", "TEXT"
     )
+    await _migrate_add_column_if_missing(
+        db, "projects", "source", "TEXT NOT NULL DEFAULT 'web'"
+    )
+    await _migrate_mark_cli_local_projects(db)
 
 
     await _migrate_drop_legacy_crafts_table(db)
@@ -1006,15 +1108,87 @@ async def _migrate_add_column_if_missing(
     column: str,
     column_type: str,
 ) -> None:
+    import asyncio
 
     try:
         cursor = await db.execute(f"PRAGMA table_info({table})")
         rows = await cursor.fetchall()
         existing = {row[1] for row in rows}
-        if column not in existing:
-            await db.execute(f"ALTER TABLE {table} ADD COLUMN {column} {column_type}")
+        if column in existing:
+            return
     except Exception as e:
-        print(f"[db_migrate] ⚠ skip ALTER {table}.{column}: {e}", flush=True)
+        print(f"[db_migrate] ⚠ inspect {table}.{column}: {e}", flush=True)
+        return
+
+    last_err: Exception | None = None
+    for attempt in range(1, 6):
+        try:
+            await db.execute("PRAGMA busy_timeout=8000")
+            await db.execute(f"ALTER TABLE {table} ADD COLUMN {column} {column_type}")
+            await db.commit()
+            print(f"[db_migrate] ✓ added {table}.{column}", flush=True)
+            return
+        except Exception as e:
+            last_err = e
+            msg = str(e).lower()
+            if "duplicate column" in msg or "already exists" in msg:
+                return
+            if "locked" in msg and attempt < 5:
+                await asyncio.sleep(0.4 * attempt)
+                continue
+            break
+    print(f"[db_migrate] ⚠ skip ALTER {table}.{column}: {last_err}", flush=True)
+
+
+def _workspace_is_outside_projects_dir(workspace_path: str) -> bool:
+    projects_dir = Path(settings.paths.projects_dir).expanduser()
+    if not projects_dir.is_absolute():
+        projects_dir = (Path.cwd() / projects_dir).resolve()
+    else:
+        projects_dir = projects_dir.resolve()
+    try:
+        wp = Path(workspace_path or "").expanduser().resolve()
+        wp.relative_to(projects_dir)
+        return False
+    except Exception:
+        return True
+
+
+async def _migrate_mark_cli_local_projects(db: aiosqlite.Connection) -> None:
+    try:
+        cursor = await db.execute(
+            "SELECT id, workspace_path, COALESCE(source, 'web') FROM projects"
+        )
+        rows = await cursor.fetchall()
+        for row in rows:
+            if row[2] == "cli_local":
+                continue
+            if _workspace_is_outside_projects_dir(row[1] or ""):
+                await db.execute(
+                    "UPDATE projects SET source = 'cli_local' WHERE id = ?",
+                    (row[0],),
+                )
+    except Exception as e:
+        print(f"[db_migrate] ⚠ skip mark cli_local projects: {e}", flush=True)
+
+
+async def _migrate_mark_cli_local_projects_pg(conn) -> None:
+    try:
+        rows = await conn.fetch(
+            "SELECT id, workspace_path, COALESCE(source, 'web') FROM projects"
+        )
+        for row in rows:
+            if row[2] == "cli_local":
+                continue
+            if _workspace_is_outside_projects_dir(row[1] or ""):
+                await conn.execute(
+                    "UPDATE projects SET source = $1 WHERE id = $2",
+                    "cli_local",
+                    row[0],
+                )
+    except Exception as e:
+        print(f"[db_migrate_pg] ⚠ skip mark cli_local projects: {e}", flush=True)
+
 
 async def _migrate_drop_legacy_crafts_table(db: aiosqlite.Connection) -> None:
 

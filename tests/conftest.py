@@ -5,8 +5,9 @@ from httpx import ASGITransport, AsyncClient
 def pytest_configure(config):
     import os
     from pathlib import Path
+    import tempfile
 
-    base = Path(".pytest-tmp") / f"run-{os.getpid()}"
+    base = Path(tempfile.gettempdir()) / f"icore-pytest-{os.getpid()}"
     base.mkdir(parents=True, exist_ok=True)
     config.option.basetemp = str(base)
 

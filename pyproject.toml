@@ -48,6 +48,14 @@ dependencies = [
 
     # 系统资源监控（后台实时监控：CPU/内存/磁盘/网络）
     "psutil>=5.9",
+
+    # 微信渠道媒体 AES（可选增强；无则媒体加解密不可用）
+    "pycryptodome>=3.20",
+    # 微信登录二维码生成（iLink 返回 URL 时需本地画码）
+    "qrcode[pil]>=7.4",
+
+    # 本地客户端终端渲染（icore CLI）
+    "rich>=13.7",
 ]
 
 [project.optional-dependencies]
@@ -65,6 +73,15 @@ build = [
     "ordered-set>=4.1",
     "zstandard>=0.22",
 ]
+# 桌面 C/S 客户端：独立窗口打开完整 B/S 工作台
+desktop = [
+    "pywebview>=5.0",
+    "pyinstaller>=6.0",
+]
+
+[project.scripts]
+icore = "cancer_claw.client.cli:main"
+icore-gui = "cancer_claw.desktop.shell:main"
 
 [project.urls]
 Homepage = "https://github.com/onekeyjune/cancer-claw"

@@ -1,0 +1,5 @@
+DEVIATION LOG
+1. Source-case raster deleted on both output slides. Reason: the original image contains an unrelated GSDME/TCGA case; requested cases are clinical assistance and drug-trial design. Native objects are used so text and tables remain editable.
+2. Empty inherited title/subtitle placeholders deleted. Reason: prevent default PowerPoint prompts; visible titles are already carried by cloned textboxes.
+3. Page marker rewritten from 11 to 1/2. Reason: output deck contains exactly two requested pages.
+4. New content objects use the inherited content frame and Calibri/navy palette. Reason: maintain the supplied template's visual system while representing different case content.

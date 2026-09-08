@@ -121,7 +121,7 @@ function SubagentRow({ step }: { step: SubagentStep }) {
   )
 }
 
-function AskUserCard({ step }: { step: AskUserStep }) {
+export function AskUserCard({ step }: { step: AskUserStep }) {
   const [draft, setDraft] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const markAnswered = useChatStore((s) => s.markAskUserAnswered)

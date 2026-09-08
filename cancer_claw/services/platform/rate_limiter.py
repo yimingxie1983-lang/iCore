@@ -14,7 +14,7 @@ from cancer_claw.services.platform.redis_client import get_redis, rkey
 
 logger = structlog.get_logger()
 
-_SLOT_TTL = 180
+_SLOT_TTL = 720
 
 _CONC_RETRY = 0.05
 

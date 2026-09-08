@@ -257,7 +257,10 @@ export function normalizeArtifactPath(raw: string): string {
   const marker = '/workspace/'
   const idx = p.toLowerCase().indexOf(marker)
   if (idx >= 0) return p.slice(idx + 1)
-  if (/^[a-zA-Z]:\//.test(p) || p.startsWith('/')) return ''
+  const name = p.split('/').filter(Boolean).pop() || ''
+  if (/^[a-zA-Z]:\//.test(p) || p.startsWith('/')) {
+    return name ? `workspace/${name}` : ''
+  }
   if (p.startsWith('workspace/')) return p
   return `workspace/${p}`
 }

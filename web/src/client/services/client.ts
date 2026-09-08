@@ -175,6 +175,112 @@ export interface AdminProjectStatusResp {
   cancelled_runs: number
 }
 
+export interface AdminProjectOwnerSlice {
+  owner_id: string
+  username: string
+  display_name: string
+  projects: number
+}
+
+export interface AdminProjectDayCount {
+  date: string
+  count: number
+}
+
+export interface CockpitProject {
+  id: string
+  name: string
+  description: string
+  owner_username: string
+  owner_display_name: string
+  status: 'active' | 'paused' | 'frozen' | string
+  visibility: string
+  running: boolean
+  running_sessions: number
+  session_count: number
+  message_count: number
+  input_tokens: number
+  cached_input_tokens: number
+  output_tokens: number
+  credits: number
+  cost_micro_cny: number
+  last_session_at?: string | null
+  created_at?: string | null
+  updated_at?: string | null
+}
+
+export interface AdminProjectTokenDay {
+  date: string
+  input_tokens: number
+  cached_input_tokens: number
+  output_tokens: number
+  credits: number
+  cost_micro_cny: number
+}
+
+export interface AdminProjectTokenHour {
+  hour: string
+  input_tokens: number
+  cached_input_tokens: number
+  output_tokens: number
+  credits: number
+  cost_micro_cny: number
+}
+
+export interface AdminProjectTokenModel {
+  model: string
+  calls: number
+  input_tokens: number
+  cached_input_tokens: number
+  output_tokens: number
+  credits: number
+  cost_micro_cny: number
+}
+
+export interface AdminProjectTokenStats {
+  input_tokens: number
+  cached_input_tokens: number
+  output_tokens: number
+  total_tokens: number
+  fresh_input_tokens: number
+  calls: number
+  last_7d: number
+  last_24h: number
+  last_7d_credits: number
+  last_7d_cost_micro_cny: number
+  last_24h_credits: number
+  last_24h_cost_micro_cny: number
+  credits: number
+  cost_micro_cny: number
+  last_14d: AdminProjectTokenDay[]
+  last_24h_hourly: AdminProjectTokenHour[]
+  by_model: AdminProjectTokenModel[]
+}
+
+export interface AdminProjectStats {
+  generated_at: string
+  totals: {
+    projects: number
+    active: number
+    paused: number
+    frozen: number
+    running_projects: number
+    running_sessions: number
+    sessions: number
+    messages: number
+    owners: number
+    created_7d: number
+    created_30d: number
+    active_24h: number
+  }
+  by_status: Record<string, number>
+  by_visibility: Record<string, number>
+  by_owner: AdminProjectOwnerSlice[]
+  created_last_14d: AdminProjectDayCount[]
+  tokens: AdminProjectTokenStats
+  projects: CockpitProject[]
+}
+
 export interface AuthUser {
   id: string
   username: string
@@ -223,6 +329,82 @@ export interface ProjectDeliverable {
   size: number
   mtime: number
   group: string
+}
+
+export interface TrainGpuInfo {
+  name: string
+  memory_total_mb: number
+  driver: string
+  compute_cap: string
+}
+
+export interface TrainRuntime {
+  python: string
+  python_ready: boolean
+  setup_hint: string
+  torch_version: string
+  cuda_available: boolean
+  cuda_version: string
+  gpu: TrainGpuInfo | null
+  max_vram_mb: number
+  sklearn_ready: boolean
+  hint: string
+}
+
+export interface TrainDesignData {
+  path: string
+  n_samples: number
+  n_features: number
+  format: string
+  label_column: string
+  attached: string[]
+}
+
+export interface TrainDesign {
+  task_type: string
+  model_family: string
+  architecture_summary: string
+  data: TrainDesignData
+  metrics: string[]
+  device: string
+  feasibility: string
+  feasibility_reason: string
+  batch_size: number
+  epochs: number
+  estimated_minutes: number
+  script_path: string
+  python_exe: string
+  hyperparams: Record<string, unknown>
+}
+
+export interface TrainArtifact {
+  name: string
+  path: string
+}
+
+export interface TrainRun {
+  id: string
+  project_id: string
+  brief: string
+  status: string
+  design: TrainDesign | null
+  script_path: string
+  log_path: string
+  pid?: number | null
+  metrics: Record<string, unknown> | null
+  error: string
+  created_at?: string | null
+  updated_at?: string | null
+  finished_at?: string | null
+  artifacts: TrainArtifact[]
+  kill_on_close?: boolean
+  progress?: {
+    last_line: string
+    epoch: number
+    epochs: number
+    percent: number
+    done: boolean
+  }
 }
 
 export interface Role {
@@ -414,6 +596,16 @@ export interface ProviderUpsert {
   priority: number
 }
 
+export interface ProviderProbeReq {
+  base_url: string
+  api_key?: string
+}
+
+export interface ProviderProbeResp {
+  ok: boolean
+  models: string[]
+}
+
 export interface HealthResp {
   status: 'healthy' | 'degraded'
   components: Record<string, string>
@@ -570,15 +762,17 @@ export interface SkillPinsResp {
 }
 
 export interface AttachedFileMeta {
-
   name: string
-
   path: string
-
   size: number
-
   kind?: 'image' | 'file'
+  status?: 'ok' | 'privacy_review'
+  privacy_hits?: Record<string, number>
+  privacy_total?: number
+  message?: string
 }
+
+export type UploadPrivacyAction = 'desensitize' | 'keep' | 'abort'
 
 export interface SessionMeta {
   session_id: string
@@ -750,14 +944,34 @@ export type FilePreviewResp =
 
 function projectFilePathCandidates(path: string): string[] {
   const normalized = (path || '').replace(/\\/g, '/').replace(/^\/+/, '')
-  if (!normalized) return []
-  const candidates = [normalized]
-  if (normalized.startsWith('workspace/')) {
-    candidates.push(normalized.slice('workspace/'.length))
-  } else {
-    candidates.push(`workspace/${normalized}`)
+  const name = normalized.split('/').filter(Boolean).pop() || ''
+  const outside = /^[a-zA-Z]:\//.test(normalized) || normalized.startsWith('//')
+  const out: string[] = []
+  if (normalized && !outside) {
+    out.push(normalized)
+    if (normalized.startsWith('workspace/')) {
+      out.push(normalized.slice('workspace/'.length))
+    } else {
+      out.push(`workspace/${normalized}`)
+    }
   }
-  return [...new Set(candidates.filter(Boolean))]
+  if (name && !name.includes('..')) {
+    out.push(
+      `workspace/最终产出物/${name}`,
+      `workspace/manuscript/${name}`,
+      `workspace/docs/${name}`,
+      `workspace/habitat/${name}`,
+      `workspace/${name}`,
+    )
+  }
+  return [...new Set(out.filter(Boolean))]
+}
+
+function isRetryableFileError(err: unknown): boolean {
+  if (!(err instanceof ApiError)) return false
+  if (err.status === 404) return true
+  if (err.status === 400 && /路径越界/.test(err.message || '')) return true
+  return false
 }
 
 async function requestWithFilePathCandidates<T>(
@@ -775,14 +989,66 @@ async function requestWithFilePathCandidates<T>(
       return await run(candidate)
     } catch (err) {
       last = err
-      if (err instanceof ApiError && err.status === 404) continue
+      if (isRetryableFileError(err) || (err instanceof ApiError && err.status === 400 && unique.length > 1)) {
+        continue
+      }
       throw err
     }
   }
-  if (last instanceof ApiError && last.status === 404) {
-    throw new ApiError(missingMessage, 404)
+  if (last instanceof ApiError && (last.status === 404 || last.status === 400)) {
+    throw new ApiError(missingMessage, last.status)
   }
   throw last instanceof Error ? last : new ApiError(missingMessage, 404)
+}
+
+function sessionPath(projectId: string, sessionId: string, extra = ''): string {
+  return `/projects/${encodeURIComponent(projectId)}/sessions/${encodeURIComponent(sessionId)}${extra}`
+}
+
+export interface InsightItem {
+  id: number
+  title: string
+  summary: string
+  source: string
+  url: string
+  category: string
+  category_label?: string
+  tags: string[]
+  published_at: string
+}
+
+export interface InsightListResp {
+  total: number
+  items: InsightItem[]
+}
+
+export interface InsightSubscription {
+  id: number
+  keyword: string
+  hits_week: number
+  created_at?: string | null
+}
+
+export interface InsightSubscriptionHits {
+  total_24h: number
+  items: InsightSubscription[]
+}
+
+export interface InsightSource {
+  id: number
+  name: string
+  kind: string
+  url: string
+  category: string
+  enabled: boolean
+  created_at?: string | null
+}
+
+export interface InsightStats {
+  today: number
+  week: number
+  total: number
+  by_category: Record<string, number>
 }
 
 export const api = {
@@ -884,6 +1150,110 @@ export const api = {
       .then((r) => r.data),
 
   myCredits: () => http.get<CreditBalance>('/me/credits').then((r) => r.data),
+
+  listInsights: (params?: { category?: string; q?: string; limit?: number; offset?: number }) =>
+    http.get<InsightListResp>('/insights', { params }).then((r) => r.data),
+  insightStats: () => http.get<InsightStats>('/insights/stats').then((r) => r.data),
+  listInsightSubscriptions: () =>
+    http
+      .get<{ total: number; items: InsightSubscription[] }>('/insights/subscriptions')
+      .then((r) => r.data),
+  createInsightSubscription: (keyword: string) =>
+    http
+      .post<InsightSubscription>('/insights/subscriptions', { keyword })
+      .then((r) => r.data),
+  deleteInsightSubscription: (id: number) =>
+    http.delete<void>(`/insights/subscriptions/${id}`).then((r) => r.data),
+  insightSubscriptionHits: () =>
+    http.get<InsightSubscriptionHits>('/insights/subscriptions/hits').then((r) => r.data),
+  listInsightSources: () =>
+    http
+      .get<{ total: number; items: InsightSource[] }>('/insights/sources')
+      .then((r) => r.data),
+  triggerInsightCollect: () =>
+    http
+      .post<{
+        sources: number
+        fetched: number
+        inserted: number
+        summarized: number
+      }>('/insights/collect')
+      .then((r) => r.data),
+  seedInsights: () =>
+    http.post<{ ok: boolean; inserted: number }>('/insights/seed').then((r) => r.data),
+  trainRuntime: () => http.get<TrainRuntime>('/train/runtime').then((r) => r.data),
+  createTrainRun: (
+    projectId: string,
+    payload: { brief: string; attached_files?: Array<{ path: string; name?: string }> },
+  ) =>
+    http
+      .post<TrainRun>(`/projects/${projectId}/train/runs`, payload)
+      .then((r) => r.data),
+  listTrainRuns: (projectId: string) =>
+    http
+      .get<{ total: number; items: TrainRun[] }>(`/projects/${projectId}/train/runs`)
+      .then((r) => r.data),
+  getTrainRun: (projectId: string, runId: string) =>
+    http
+      .get<TrainRun>(`/projects/${projectId}/train/runs/${runId}`)
+      .then((r) => r.data),
+  confirmTrainRun: (projectId: string, runId: string) =>
+    http
+      .post<TrainRun>(`/projects/${projectId}/train/runs/${runId}/confirm`)
+      .then((r) => r.data),
+  cancelTrainRun: (projectId: string, runId: string) =>
+    http
+      .post<TrainRun>(`/projects/${projectId}/train/runs/${runId}/cancel`)
+      .then((r) => r.data),
+  trainRunLog: (projectId: string, runId: string, offset = 0) =>
+    http
+      .get<{ text: string; next_offset: number; path: string }>(
+        `/projects/${projectId}/train/runs/${runId}/log`,
+        { params: { offset } },
+      )
+      .then((r) => r.data),
+  wechatChannelStatus: () =>
+    http
+      .get<{
+        enabled: boolean
+        mode: string
+        progress_to_chat: boolean
+        default_permissions: string
+        bind_code_ttl_seconds: number
+        hint: string
+      }>('/channels/wechat/status')
+      .then((r) => r.data),
+  createWechatBindCode: (payload: { project_id: string; permissions_mode?: string }) =>
+    http
+      .post<{
+        code: string
+        project_id: string
+        project_name?: string
+        expires_in: number
+        instruction: string
+        permissions_mode: string
+      }>('/channels/wechat/bind-codes', payload)
+      .then((r) => r.data),
+  wechatBindings: () =>
+    http
+      .get<{
+        items: Array<{
+          id: string
+          channel: string
+          external_scope_id: string
+          user_id: string
+          project_id: string
+          session_id?: string | null
+          permissions_mode: string
+        }>
+      }>('/channels/wechat/bindings')
+      .then((r) => r.data),
+  deleteWechatBinding: (externalScopeId: string) =>
+    http
+      .delete<{ ok: boolean }>(
+        `/channels/wechat/bindings/${encodeURIComponent(externalScopeId)}`,
+      )
+      .then((r) => r.data),
   myCreditTransactions: (params?: {
     limit?: number
     offset?: number
@@ -1088,6 +1458,10 @@ export const api = {
         },
       })
       .then((r) => r.data),
+
+  adminProjectStats: () =>
+    http.get<AdminProjectStats>('/admin/projects/stats').then((r) => r.data),
+
   adminPauseProject: (id: string) =>
     http
       .post<AdminProjectStatusResp>(`/admin/projects/${id}/pause`)
@@ -1142,6 +1516,9 @@ export const api = {
 
   deleteProvider: (id: string) =>
     http.delete(`/providers/${id}`).then((r) => r.data),
+
+  probeProvider: (body: ProviderProbeReq) =>
+    http.post<ProviderProbeResp>('/providers/probe', body).then((r) => r.data),
 
   chatSync: (payload: {
     message: string
@@ -1264,6 +1641,18 @@ export const api = {
       .then((r) => r.data)
   },
 
+  confirmUploadPrivacy: (
+    projectId: string,
+    path: string,
+    action: UploadPrivacyAction,
+  ) =>
+    http
+      .post<AttachedFileMeta>(`/projects/${projectId}/uploads/privacy`, {
+        path,
+        action,
+      }, { timeout: 30 * 60_000 })
+      .then((r) => r.data),
+
   deleteAttachment: (projectId: string, path: string) =>
     http
       .delete<{ ok: boolean; path: string }>(`/projects/${projectId}/uploads`, {
@@ -1287,7 +1676,7 @@ export const api = {
 
   getSession: (projectId: string, sessionId: string) =>
     http
-      .get<SessionMeta>(`/projects/${projectId}/sessions/${sessionId}`)
+      .get<SessionMeta>(sessionPath(projectId, sessionId))
       .then((r) => r.data),
 
   getSessionMessages: (
@@ -1297,7 +1686,7 @@ export const api = {
   ) =>
     http
       .get<SessionMessagesResp>(
-        `/projects/${projectId}/sessions/${sessionId}/messages`,
+        sessionPath(projectId, sessionId, '/messages'),
         {
           params: {
             offset: params?.offset ?? undefined,
@@ -1324,7 +1713,7 @@ export const api = {
           created_at: number
         }>
       }>(
-        `/projects/${projectId}/sessions/${sessionId}/events`,
+        sessionPath(projectId, sessionId, '/events'),
         {
           params: {
             after_seq: params?.after_seq ?? undefined,
@@ -1346,13 +1735,13 @@ export const api = {
         status: string
         last_seq: number
         error?: string | null
-      }>(`/projects/${projectId}/sessions/${sessionId}/live/status`)
+      }>(sessionPath(projectId, sessionId, '/live/status'))
       .then((r) => r.data),
 
   cancelSessionRun: (projectId: string, sessionId: string) =>
     http
       .post<{ ok: boolean; cancelled: boolean; status: string }>(
-        `/projects/${projectId}/sessions/${sessionId}/cancel`,
+        sessionPath(projectId, sessionId, '/cancel'),
       )
       .then((r) => r.data),
 
@@ -1362,7 +1751,7 @@ export const api = {
     body: { title?: string; status?: 'active' | 'ended' | 'archived' },
   ) =>
     http
-      .patch<SessionMeta>(`/projects/${projectId}/sessions/${sessionId}`, body)
+      .patch<SessionMeta>(sessionPath(projectId, sessionId), body)
       .then((r) => r.data),
 
   deleteSession: (projectId: string, sessionId: string) =>
@@ -1373,7 +1762,7 @@ export const api = {
         deleted_meta: boolean
         deleted_row: boolean
         deleted_history_rows: number
-      }>(`/projects/${projectId}/sessions/${sessionId}`)
+      }>(sessionPath(projectId, sessionId))
       .then((r) => r.data),
 
   reconcileSessions: (projectId: string) =>

@@ -502,6 +502,21 @@ class WorkingMemory:
             row = await cursor.fetchone()
             next_seq = int(row[0]) if row else 0
 
+        if (
+            settings.privacy.enabled
+            and settings.privacy.mode != "off"
+            and getattr(settings.privacy, "desensitize_on_persist", True)
+        ):
+            from cancer_claw.services.privacy.desensitizer import desensitize_text
+
+            ctx = f"persist:{self.project_id}"
+            if content:
+                content = desensitize_text(content, context=ctx).text
+            if tool_calls_json:
+                tool_calls_json = desensitize_text(
+                    tool_calls_json, context=f"{ctx}:tools"
+                ).text
+
         await db.execute(
             "INSERT INTO conversation_history (project_id, agent_id, role, content, "
             "tool_calls_json, tool_call_id, name, seq, platform_id, session_id) "
