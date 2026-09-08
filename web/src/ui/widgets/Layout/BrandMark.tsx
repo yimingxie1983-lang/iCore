@@ -7,6 +7,8 @@ import { cn } from '@/shared/foundation/utils'
 export interface BrandVariant {
   id: 1 | 2 | 3
   src: string
+  /** 深色登录页等：透明底、冷青墨色，便于与舞台融合 */
+  darkSrc?: string
 
   shortTitle: string
 
@@ -19,6 +21,7 @@ export const BRAND_VARIANTS: BrandVariant[] = [
   {
     id: 1,
     src: '/logo/logo-fudan.jpg',
+    darkSrc: '/logo/logo-fudan-ondark.png',
     shortTitle: '复旦大学上海医学科研数据中心',
     fullTitle: '复旦大学上海医学科研数据中心\niCore 智能体平台',
     subtitle: 'iCore 智能体平台',
@@ -72,24 +75,27 @@ interface MarkProps {
   brand?: BrandVariant
   size?: number
   className?: string
+  /** 深色场景：去掉白底底板，便于与登录页等背景融合 */
+  onDark?: boolean
 }
 
-export function BrandLogo({ brand, size = 40, className }: MarkProps) {
+export function BrandLogo({ brand, size = 40, className, onDark = false }: MarkProps) {
   const b = brand ?? BRAND_VARIANTS[0]
+  const src = onDark && b.darkSrc ? b.darkSrc : b.src
   return (
     <img
-      src={b.src}
+      src={src}
       alt={b.shortTitle}
       className={className}
       style={{
         height: size,
         width: b.landscape ? 'auto' : size,
-        maxWidth: b.landscape ? Math.round(size * 2.4) : size,
+        maxWidth: b.landscape ? Math.round(size * (onDark ? 3.2 : 2.4)) : size,
         objectFit: 'contain',
-        borderRadius: Math.max(4, Math.round(size * 0.08)),
+        borderRadius: onDark ? 0 : Math.max(4, Math.round(size * 0.08)),
         display: 'block',
         flexShrink: 0,
-        background: '#fff',
+        background: onDark ? 'transparent' : '#fff',
       }}
     />
   )

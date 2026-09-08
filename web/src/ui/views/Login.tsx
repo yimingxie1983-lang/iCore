@@ -253,7 +253,7 @@ export default function Login() {
       <div className="login-layout relative z-10">
         <aside className="login-brand-pane">
           <div className="login-brand-mark">
-            <BrandLogo brand={brand} size={56} className="login-brand-logo" />
+            <BrandLogo brand={brand} size={68} className="login-brand-logo" onDark />
             <div className="login-brand-org">{brand.shortTitle}</div>
           </div>
 
@@ -290,8 +290,8 @@ export default function Login() {
         <section className="login-form-pane">
           <div className="w-full max-w-[420px]">
             <div className="login-mobile-brand">
-              <BrandLogo brand={brand} size={44} className="login-brand-logo" />
-              <div>
+              <BrandLogo brand={brand} size={48} className="login-brand-logo" onDark />
+              <div className="login-mobile-brand-text">
                 <div className="login-mobile-icore">iCore</div>
                 <div className="login-mobile-org">{brand.shortTitle}</div>
               </div>
